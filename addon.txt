@@ -1,0 +1,6 @@
+"AddonInfo"
+{
+	"name" "Luabox"
+	"author_name" "TGiFallen"
+	"info" "Luasanbox"
+}
