@@ -6,9 +6,12 @@ if SERVER then--											--this file strictly loads the main files of the proj
 	AddCSLuaFile("luabox/cl_luabox.lua")
 	AddCSLuaFile("luabox/sh_luabox.lua")
 
+	AddCSLuaFile("luabox/modules/luabox.lua")
+
 	include("luabox/sv_luabox.lua")
 else
 	include("luabox/cl_luabox.lua")
 end
 
 include("luabox/sh_luabox.lua")
+include("luabox/modules/luabox.lua")

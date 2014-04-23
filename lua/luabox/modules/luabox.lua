@@ -30,41 +30,64 @@ end
 
 Environment = Class()														-- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed
 
-function Environment:Initialize()
-	self.BaseFunctions = {}
-	self.Environment = setmetatable( {} , {__index=self.BaseFunctions})
+function Environment:Initialize( basefunctions , func )
+	self.Environment = {}
+	self.Environment["_G"] = self.Environment
 
+	self:SetBaseFunctions( basefunctions )
 end
 
-function Environment:AddAllDefaultLibraries()
-	for LibraryName , Library in pairs(Libraries) do
-		for Key , Value in pairs(Library.Functions) do
-			self.BaseFunctions[Key] = Value
-		end
-	end
+function Environment:SetBaseFunctions( functab )
+	self.Environment = setmetatable( self.Environment , {__index = functab})
 end
+
+function Environment:SetFunction( func )
+	self.Function = setfenv( func , self.Environment )
+end
+
+function Environment:GetFunction()
+	return self.Function
+end
+
+function Environment:GetEnvironment()
+	return self.Environment
+end
+
+
 
 Library = Class()
 
 function Library:Initialize( name )
-	print("Library initialized",name)
-
-	self:Register(name)
-
+	--print("Library initialized",name)
 	rawset(self , "Functions" , {})
+	rawset(self , "Name" , name )
+
+
+	self:Register()
 end
 
-function Library:Register( name )
-	Libraries[name] = self
+function Library:Register()
+	Libraries[self.Name] = self
+end
+
+function Library:UnRegister()
+	Libraries[self.Name] = nil
 end
 
 function Library.__newindex( self , key , value )
-	print( "what did I add?", self , key , value )
+	--print( "what did I add?", self , key , value )
 	self.Functions[key] = value
 end
 
+function Library:GetFunctions()
+	return self.Functions
+end
 
-print("test from luabox module")
+function Library:AddFunction( name , func ) 
+	self.Functions[name] = func
+end
+
+--print("test from luabox module")
 
 Container = Class()															-- Container class is in charge of executing sandbox code and holding the environment
 
@@ -72,20 +95,37 @@ function Container:Initialize()
 	self.Environment = {}
 end
 
+--MsgN("WHY NOT BOTH",CLIENT,SERVER)
 
 
 
+local files = file.Find("luabox/libraries/*.lua","LUA")
 
-do--																		-- Do event for easy code folding, this loads default libraries
-	local files = file.Find("luabox/libraries/*.lua","LUA")
+for _, File in pairs(files) do
+	--print("added:","luabox/libraries/" .. File )
+	if SERVER then
+		AddCSLuaFile("luabox/libraries/".. File )
+	end
+	include("luabox/libraries/" .. File )
+end
 
-	for _, File in pairs(files) do
-		print("added:","luabox/libraries/" .. File )
-		include("luabox/libraries/" .. File )
+DefaultFunctions = Library( "DefaultFunctions" )
+DefaultFunctions:UnRegister()
+
+for LibraryName , Library in pairs(Libraries) do
+	--print(LibraryName,Library)
+	for Key , Value in pairs(Library:GetFunctions()) do
+		--print(CLIENT,Key,Value)
+		DefaultFunctions[Key] = Value
 	end
 end
 
+
+
 concommand.Add("reload_luabox", function()
+	for k , ply in pairs(player.GetAll()) do 
+		ply:SendLua([[include("luabox/modules/luabox.lua")]])
+	end
 	include("luabox/modules/luabox.lua")
 	print("luabox module reloaded")
 end)
