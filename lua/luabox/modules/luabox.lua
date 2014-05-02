@@ -5,16 +5,17 @@ local coroutine = coroutine
 
 module("luabox",package.seeall)
 Libraries = {}
+Containers = {}
 
 function Class(base)
-	local class = {}-- 														-- a new class metatable
-	local classmt = {}--													-- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
+	local class = {} -- a new class metatable
+	local classmt = {} -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
 	class.__index = class
 	class.base = base
 
 
-	classmt.__call = function(_, ...)--										-- expose a constructor which can be called by <classname>(<args>)
-		local obj = {}--													-- new instance of the class to be manipulated.
+	classmt.__call = function(_, ...) -- expose a constructor which can be called by <classname>(<args>)
+		local obj = {} -- new instance of the class to be manipulated.
 		setmetatable(obj,class)
 
 		if class.Initialize then
@@ -28,17 +29,23 @@ function Class(base)
 	return class
 end
 
-Environment = Class()														-- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed
+
+Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed
 
 function Environment:Initialize( basefunctions , func )
 	self.Environment = {}
 	self.Environment["_G"] = self.Environment
+	self.Environment["self"] = self.Environment
 
 	self:SetBaseFunctions( basefunctions )
+
+	if func then
+		self:SetFunction( func )
+	end
 end
 
 function Environment:SetBaseFunctions( functab )
-	self.Environment = setmetatable( self.Environment , {__index = functab})
+	self.Environment = setmetatable( self.Environment , {__index = functab} )
 end
 
 function Environment:SetFunction( func )
@@ -49,19 +56,49 @@ function Environment:GetFunction()
 	return self.Function
 end
 
+function Environment:InitialExecute()
+	return self.Function()
+end
+
 function Environment:GetEnvironment()
 	return self.Environment
 end
 
 
+Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment
+
+function Container:Initialize( defaultfuncs )
+	Containers[#Containers + 1] = self
+
+	self.Environment = Environment( defaultfuncs or DefaultFunctions:GetFunctions() )
+end
+
+function Container:SetCode( func )
+	self.Environment:SetFunction( func )
+end
+
+function Container:InitializeEnvironment()
+	self.Environment:InitialExecute()
+end
+
+local tmp
+hook.Add("Think","TESTESTESTESTEST" , function()
+
+	for I = 1 , #Containers do
+		tmp = Containers[I]
+
+		tmp.Environment:GetEnvironment():Think()
+
+	end
+
+end)
+
 
 Library = Class()
 
 function Library:Initialize( name )
-	--print("Library initialized",name)
 	rawset(self , "Functions" , {})
-	rawset(self , "Name" , name )
-
+	rawset(self , "Name" , name)
 
 	self:Register()
 end
@@ -87,15 +124,7 @@ function Library:AddFunction( name , func )
 	self.Functions[name] = func
 end
 
---print("test from luabox module")
 
-Container = Class()															-- Container class is in charge of executing sandbox code and holding the environment
-
-function Container:Initialize()
-	self.Environment = {}
-end
-
---MsgN("WHY NOT BOTH",CLIENT,SERVER)
 
 
 
@@ -109,8 +138,8 @@ for _, File in pairs(files) do
 	include("luabox/libraries/" .. File )
 end
 
-DefaultFunctions = Library( "DefaultFunctions" )
-DefaultFunctions:UnRegister()
+DefaultFunctions = Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
+DefaultFunctions:UnRegister() -- unregister it from the default functions library, so we dont get infinite recursion
 
 for LibraryName , Library in pairs(Libraries) do
 	--print(LibraryName,Library)
@@ -132,49 +161,3 @@ end)
 
 
 
-
-
-
-
-
-
-local function testprint(str)
-	print("TESTESTSETS",str)
-end
-
-luabox.Functions = {
-	print = testprint,
-}
-
-function SandBox( func )										--takes a function and returns sandbox object
-
-
-
-	return setfenv( func , luabox.Functions )
-end
-
-
-
-
-
-
-Moongate = {}
-Moongate.Functions = {
---print=function(str) print("GAAY AF",str) end,
-PLAYER = TGiFallen,
-Entity = Entity,
-pairs = pairs,
-}
-
---function Moongate.Functions:print( str )
---	self:PrintMessage(HUD_PRINTCONSOLE , "ur gaay!" .. str )
---end
-
-local function playercode()
-	print("TEST")
-end
-
---local playercode = 
-playercode = setfenv( playercode , {print=nil} )
-
---playercode()
