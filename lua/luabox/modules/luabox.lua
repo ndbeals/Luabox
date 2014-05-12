@@ -9,9 +9,12 @@ Containers = {}
 
 function Class(base)
 	local class = {} -- a new class metatable
-	local classmt = {} -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
 	class.__index = class
-	class.base = base
+
+	local classmt = {
+		__index = base,
+		base = base,
+	} -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
 
 
 	classmt.__call = function(_, ...) -- expose a constructor which can be called by <classname>(<args>)
@@ -27,6 +30,10 @@ function Class(base)
 
 	setmetatable(class, classmt)
 	return class
+end
+
+local function GetLibraryNameFromFileName( path )
+	return string.StripExtension( path )
 end
 
 
@@ -81,6 +88,7 @@ function Container:InitializeEnvironment()
 	self.Environment:InitialExecute()
 end
 
+--[[
 local tmp
 hook.Add("Think","TESTESTESTESTEST" , function()
 
@@ -92,7 +100,7 @@ hook.Add("Think","TESTESTESTESTEST" , function()
 	end
 
 end)
-
+--]]
 
 Library = Class()
 
@@ -100,6 +108,7 @@ function Library:Initialize( name )
 	rawset(self , "Functions" , {})
 	rawset(self , "Name" , name)
 
+	print(self.Register)
 	self:Register()
 end
 
@@ -125,8 +134,9 @@ function Library:AddFunction( name , func )
 end
 
 
-
-
+local librarymeta = {
+	__index = _G
+}
 
 local files = file.Find("luabox/libraries/*.lua","LUA")
 
@@ -135,16 +145,25 @@ for _, File in pairs(files) do
 	if SERVER then
 		AddCSLuaFile("luabox/libraries/".. File )
 	end
-	include("luabox/libraries/" .. File )
+	--include("luabox/libraries/" .. File )
+
+	local libchunk = CompileFile("luabox/libraries/" .. File )
+	local library = Library(GetLibraryNameFromFileName( File ))
+
+	librarymeta.__newindex = function(self,k,v)
+		library.Functions[k] = v
+	end
+
+	libchunk = setfenv(libchunk , setmetatable( {} , librarymeta ) )
+	libchunk()
 end
+
 
 DefaultFunctions = Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
 DefaultFunctions:UnRegister() -- unregister it from the default functions library, so we dont get infinite recursion
 
 for LibraryName , Library in pairs(Libraries) do
-	--print(LibraryName,Library)
 	for Key , Value in pairs(Library:GetFunctions()) do
-		--print(CLIENT,Key,Value)
 		DefaultFunctions[Key] = Value
 	end
 end

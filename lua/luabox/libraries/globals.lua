@@ -1,7 +1,6 @@
 --Copyright 2014 Nathan Beals
-self = luabox.Library("globals")
 
-self.print = print 
+print = print
 
-self.CLIENT = CLIENT
-self.SERVER = SERVER
+CLIENT = CLIENT
+SERVER = SERVER
