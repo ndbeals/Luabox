@@ -117,8 +117,7 @@ end
 Script = Class()
 
 function Script:Initialize( environment , func)
-	self.Environment = environment
-
+	self:SetEnvironment( environment )
 	self:SetFunction(func)
 end
 
@@ -130,6 +129,13 @@ function Script:SetScript( funcstr )
 	self.Function = CompileString( funcstr ) 
 end
 
+function Script:GetEnvironemnt()
+	return self.Environment
+end
+
+function Script:SetEnvironment( environment )
+	self.Environment = environment
+end
 
 Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment
 
@@ -142,7 +148,7 @@ function Container:Initialize( defaultfuncs )
 end
 
 function Container:AddScript( func )
-	self.Scripts[#self.Scripts + 1] = Script()
+	self.Scripts[#self.Scripts + 1] = Script( self.Environment , func )
 
 
 	self.Environment:SetFunction( func )
