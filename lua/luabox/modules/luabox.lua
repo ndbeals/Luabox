@@ -122,11 +122,15 @@ function Script:Initialize( environment , func)
 end
 
 function Script:SetFunction( func )
-	self.Function = func
+	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
 function Script:SetScript( funcstr )
-	self.Function = CompileString( funcstr ) 
+	self.Function = setfenv( CompileString( funcstr ) , self.Environment:GetEnvironment() )
+end
+
+function Script:GetFunction()
+	return self.Function
 end
 
 function Script:GetEnvironemnt()
@@ -151,7 +155,7 @@ function Container:AddScript( func )
 	self.Scripts[#self.Scripts + 1] = Script( self.Environment , func )
 
 
-	self.Environment:SetFunction( func )
+	--self.Environment:SetFunction( func )
 end
 
 function Container:InitializeEnvironment()
