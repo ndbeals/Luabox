@@ -63,13 +63,13 @@ function LoadLibraries()
 			library.Functions[k] = v
 		end
 
-		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {} , librarymeta ) )() --convoluted line, but this whole function gets grey, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of hte library class created above this. and 3. Calls the loaded and edited function
+		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, but this whole function gets grey, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of hte library class created above this. and 3. Calls the loaded and edited function
 	end
 end
 
 function CreateDefaultLibrary()
-	DefaultFunctions = Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
-	DefaultFunctions:UnRegister() -- unregister it from the default functions library, so we dont get infinite recursion
+	DefaultFunctions = {}--Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
+	--DefaultFunctions:UnRegister() -- unregister it from the default functions library, so we dont get infinite recursion
 
 	for LibraryName , Library in pairs(Libraries) do
 		for Key , Value in pairs(Library:GetFunctions()) do
@@ -84,7 +84,7 @@ Environment = Class() -- Environment just holds all data and functions for any g
 function Environment:Initialize( basefunctions , func )
 	self.Environment = {}
 	self.Environment["_G"] = self.Environment
-	self.Environment["self"] = self.Environment
+	--self.Environment["self"] = self.Environment
 
 	self:SetBaseFunctions( basefunctions )
 
@@ -96,18 +96,6 @@ end
 function Environment:SetBaseFunctions( functab )
 	self.Environment = setmetatable( self.Environment , {__index = functab} )
 end
-
---function Environment:SetFunction( func )
---	self.Function = setfenv( func , self.Environment )
---end
---
---function Environment:GetFunction()
---	return self.Function
---end
---
---function Environment:InitialExecute()
---	return self.Function()
---end
 
 function Environment:GetEnvironment()
 	return self.Environment
@@ -125,8 +113,9 @@ function Script:SetFunction( func )
 	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
+-- todo: error catch string code
 function Script:SetScript( funcstr )
-	self.Function = setfenv( CompileString( funcstr ) , self.Environment:GetEnvironment() )
+	self.Function = setfenv( CompileString( funcstr , tostring(self) ) , self.Environment:GetEnvironment() )
 end
 
 function Script:GetFunction()
@@ -141,25 +130,52 @@ function Script:SetEnvironment( environment )
 	self.Environment = environment
 end
 
+function Script:Execute()
+	return pcall( self.Function )
+end
+
+
 Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment
 
 function Container:Initialize( defaultfuncs )
 	Containers[#Containers + 1] = self
 
+	self.LoadedLibraries = Libraries
 	self.Scripts = {}
 
-	self.Environment = Environment( defaultfuncs or DefaultFunctions:GetFunctions() )
+	self.Environment = Environment( defaultfuncs or DefaultFunctions )
+
+	-- add include function directly from here, kind of hacky
+	--self.Environment.Environment.include = function()
+	--	
+	--end
 end
 
 function Container:AddScript( func )
-	self.Scripts[#self.Scripts + 1] = Script( self.Environment , func )
+	local newscript = Script( self.Environment , func )
+	self.Scripts[#self.Scripts + 1] = newscript
 
-
-	--self.Environment:SetFunction( func )
+	return newscript
 end
 
-function Container:InitializeEnvironment()
-	self.Environment:InitialExecute()
+function Container:RunScripts()
+
+	for i = 1 , #self.Scripts do
+		local success , msg = self.Scripts[i]:Execute()
+
+		if not success then
+			print("errored with:" , msg)
+
+			break
+		end
+	end
+
+end
+
+function Container:UnloadScripts()
+	for name , lib in pairs( self.LoadedLibraries ) do
+		
+	end
 end
 
 --[[
