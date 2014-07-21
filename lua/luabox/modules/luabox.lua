@@ -77,7 +77,7 @@ function CreateDefaultLibrary()
 end
 
 
-Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed
+Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed (fix wording)
 
 function Environment:Initialize( func , basefunctions )
 	self.Environment = {}
@@ -125,7 +125,7 @@ function Script:GetEnvironemnt()
 	return self.Environment
 end
 
-function Script:SetEnvironment( environment )
+function Script:SetEnvironment( environment )ttt
 	self.Environment = environment
 end
 
