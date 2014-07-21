@@ -16,8 +16,6 @@ end
 -- Supports infinite class inheritence
 -- @param base The baseclass for the newly created class to inherit from
 -- @return Returns the brand new class template to be edited
--- @usage local dog = Class() 
--- function dog:Test() end
 function Class(base)
 	local class = {} -- a new class metatable
 	class.__index = class
@@ -63,7 +61,7 @@ function LoadLibraries()
 			library.Functions[k] = v
 		end
 
-		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, but this whole function gets grey, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of hte library class created above this. and 3. Calls the loaded and edited function
+		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, but this whole function gets grey, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of the library class created above this. and 3. Calls the loaded and edited function
 	end
 end
 
@@ -81,9 +79,10 @@ end
 
 Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed
 
-function Environment:Initialize( basefunctions , func )
+function Environment:Initialize( func , basefunctions )
 	self.Environment = {}
 	self.Environment["_G"] = self.Environment
+	basefunctions = basefunctions or DefaultFunctions
 	--self.Environment["self"] = self.Environment
 
 	self:SetBaseFunctions( basefunctions )
@@ -227,6 +226,7 @@ function Library:RemoveFunction( name )
 end
 
 
+
 concommand.Add("reload_luabox", function()
 	for k , ply in pairs(player.GetAll()) do 
 		ply:SendLua([[include("luabox/modules/luabox.lua")]])
@@ -234,6 +234,7 @@ concommand.Add("reload_luabox", function()
 	include("luabox/modules/luabox.lua")
 	print("luabox module reloaded")
 end)
+
 
 
 LoadLibraries()

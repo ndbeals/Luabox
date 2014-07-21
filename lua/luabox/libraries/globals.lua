@@ -1,6 +1,6 @@
 --Copyright 2014 Nathan Beals
 
-print(self,"TESTETESTS")
+print(self,"TESTETESTS\n globals loaded \n \n gfdgdf\n \n \nfsdgfsfg\n\n\nfgd\n")
 print = print
 
 CLIENT = CLIENT
