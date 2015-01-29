@@ -1,6 +1,6 @@
 --Copyright 2014 Nathan Beals
 
-local coroutine = coroutine
+--local coroutine = coroutine
 
 
 module("luabox",package.seeall)
@@ -61,7 +61,7 @@ function LoadLibraries()
 			library.Functions[k] = v
 		end
 
-		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, but this whole function gets grey, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of the library class created above this. and 3. Calls the loaded and edited function
+		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of the library class created above this. and 3. Calls the loaded and edited function
 	end
 end
 
@@ -79,7 +79,7 @@ end
 
 Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed (fix wording)
 
-function Environment:Initialize( func , basefunctions )
+function Environment:Initialize( basefunctions )
 	self.Environment = {}
 	self.Environment["_G"] = self.Environment
 	basefunctions = basefunctions or DefaultFunctions
@@ -87,12 +87,13 @@ function Environment:Initialize( func , basefunctions )
 
 	self:SetBaseFunctions( basefunctions )
 
-	if func then
-		self:SetFunction( func )
-	end
+	--if func then
+	--	self:SetFunction( func )
+	--end
 end
 
 function Environment:SetBaseFunctions( functab )
+	if not functab then return end
 	self.Environment = setmetatable( self.Environment , {__index = functab} )
 end
 
@@ -109,11 +110,14 @@ function Script:Initialize( environment , func)
 end
 
 function Script:SetFunction( func )
+	if not func then return end
 	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
 -- todo: error catch string code
 function Script:SetScript( funcstr )
+	if not funcstr then return end
+	if not self:GetEnvironment() then return end
 	self.Function = setfenv( CompileString( funcstr , tostring(self) ) , self.Environment:GetEnvironment() )
 end
 
@@ -125,7 +129,7 @@ function Script:GetEnvironemnt()
 	return self.Environment
 end
 
-function Script:SetEnvironment( environment )ttt
+function Script:SetEnvironment( environment )
 	self.Environment = environment
 end
 
@@ -142,7 +146,9 @@ function Container:Initialize( defaultfuncs )
 	self.LoadedLibraries = Libraries
 	self.Scripts = {}
 
-	self.Environment = Environment( defaultfuncs or DefaultFunctions )
+	defaultfuncs = defaultfuncs or DefaultFunctions
+
+	self.Environment = Environment( defaultfuncs )
 
 	-- add include function directly from here, kind of hacky
 	--self.Environment.Environment.include = function()
@@ -151,6 +157,8 @@ function Container:Initialize( defaultfuncs )
 end
 
 function Container:AddScript( func )
+	if not func then return end
+
 	local newscript = Script( self.Environment , func )
 	self.Scripts[#self.Scripts + 1] = newscript
 
@@ -194,6 +202,7 @@ end)
 Library = Class()
 
 function Library:Initialize( name )
+	name = name or tostring(self)
 	rawset(self , "Functions" , {})
 	rawset(self , "Name" , name)
 
@@ -218,10 +227,13 @@ function Library:GetFunctions()
 end
 
 function Library:AddFunction( name , func ) 
+	if not name then return end
+	if not func then return end
 	self.Functions[name] = func
 end
 
-function Library:RemoveFunction( name ) 
+function Library:RemoveFunction( name )
+	if not name  then return end
 	self.Functions[name] = nil
 end
 
