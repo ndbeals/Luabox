@@ -4,8 +4,9 @@
 
 
 module("luabox",package.seeall)
-Libraries = {}
-Containers = {}
+Libraries			=	{}
+Containers			=	{}
+DefaultFunctions	=	{}
 
 local function GetLibraryNameFromFileName( path )
 	return string.StripExtension( path )
@@ -77,28 +78,69 @@ function CreateDefaultLibrary()
 end
 
 
+Library = Class()
+
+function Library:Initialize( name )
+	name = name or tostring(self)
+	rawset(self , "Functions" , {})
+	rawset(self , "Name" , name)
+
+	self:Register()
+end
+
+function Library:Register()
+	Libraries[self.Name] = self
+end
+
+function Library:UnRegister()
+	Libraries[self.Name] = nil
+end
+
+function Library.__newindex( self , key , value )
+	--print( "what did I add?", self , key , value )
+	self.Functions[key] = value
+end
+
+function Library:GetFunctions()
+	return self.Functions
+end
+
+function Library:AddFunction( name , func ) 
+	if not name then return end
+	if not func then return end
+
+	self.Functions[name] = func
+end
+
+function Library:RemoveFunction( name )
+	if not name then return end
+	
+	self.Functions[name] = nil
+end
+
+
 Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed (fix wording)
 
 function Environment:Initialize( basefunctions )
-	self.Environment = {}
-	self.Environment["_G"] = self.Environment
 	basefunctions = basefunctions or DefaultFunctions
-	--self.Environment["self"] = self.Environment
 
+	self:SetEnvironment({})
 	self:SetBaseFunctions( basefunctions )
-
-	--if func then
-	--	self:SetFunction( func )
-	--end
 end
 
 function Environment:SetBaseFunctions( functab )
 	if not functab then return end
-	self.Environment = setmetatable( self.Environment , {__index = functab} )
+	self:SetEnvironment( setmetatable( self.Environment , {__index = functab} ) )
 end
 
 function Environment:GetEnvironment()
 	return self.Environment
+end
+
+function Environment:SetEnvironment( env )
+	self.Environment = env
+	self.Environment["_G"] = env
+	self.Environment["self"] = env
 end
 
 
@@ -106,11 +148,12 @@ Script = Class()
 
 function Script:Initialize( environment , func)
 	self:SetEnvironment( environment )
-	self:SetFunction(func)
+	self:SetFunction( func )
 end
 
 function Script:SetFunction( func )
 	if not func then return end
+
 	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
@@ -118,6 +161,7 @@ end
 function Script:SetScript( funcstr )
 	if not funcstr then return end
 	if not self:GetEnvironment() then return end
+
 	self.Function = setfenv( CompileString( funcstr , tostring(self) ) , self.Environment:GetEnvironment() )
 end
 
@@ -199,43 +243,49 @@ hook.Add("Think","TESTESTESTESTEST" , function()
 end)
 --]]
 
-Library = Class()
 
-function Library:Initialize( name )
-	name = name or tostring(self)
-	rawset(self , "Functions" , {})
-	rawset(self , "Name" , name)
 
-	self:Register()
+if !HookCall then HookCall = hook.Call end
+local arg , env , container , retvlues
+hook.Call = function( name, gm, ... )
+	arg = { ... }
+
+	for i = 1 , #Containers do
+		container = containers[i]
+		env = Container.Environment.Environment
+
+		if env[name] then
+			retvalues = { pcall( Env[name] , ... ) }
+
+
+			if ( retValues[1] and retValues[2] != nil ) then
+				table.remove( retValues, 1 )
+				return unpack( retValues )
+			elseif ( !retValues[1] ) then
+				print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
+				print(retValues[2] )
+			end
+		end
+	end
+	
+	return HookCall( name, gm, ... )
 end
 
-function Library:Register()
-	Libraries[self.Name] = self
-end
 
-function Library:UnRegister()
-	Libraries[self.Name] = nil
-end
 
-function Library.__newindex( self , key , value )
-	--print( "what did I add?", self , key , value )
-	self.Functions[key] = value
-end
 
-function Library:GetFunctions()
-	return self.Functions
-end
 
-function Library:AddFunction( name , func ) 
-	if not name then return end
-	if not func then return end
-	self.Functions[name] = func
-end
 
-function Library:RemoveFunction( name )
-	if not name  then return end
-	self.Functions[name] = nil
-end
+
+
+
+
+
+
+
+
+
+
 
 
 
