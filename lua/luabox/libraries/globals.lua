@@ -1,6 +1,6 @@
 --Copyright 2014 Nathan Beals
-
-print(self,"globals loaded")
+local test = {...}
+print(self,"globals loaded",test[1])
 print = print
 
 CLIENT = CLIENT

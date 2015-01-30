@@ -97,7 +97,6 @@ function Library:UnRegister()
 end
 
 function Library.__newindex( self , key , value )
-	--print( "what did I add?", self , key , value )
 	self.Functions[key] = value
 end
 
@@ -246,24 +245,24 @@ end)
 
 
 if !HookCall then HookCall = hook.Call end
-local arg , env , container , retvlues
+local arg , env , container , retvalues
 hook.Call = function( name, gm, ... )
 	arg = { ... }
 
 	for i = 1 , #Containers do
-		container = containers[i]
-		env = Container.Environment.Environment
+		container = Containers[i]
+		env = container.Environment.Environment
 
 		if env[name] then
-			retvalues = { pcall( Env[name] , ... ) }
+			retvalues = { pcall( env[name] , env , ... ) }
 
 
-			if ( retValues[1] and retValues[2] != nil ) then
-				table.remove( retValues, 1 )
-				return unpack( retValues )
-			elseif ( !retValues[1] ) then
+			if ( retvalues[1] and retvalues[2] != nil ) then
+				table.remove( retvalues, 1 )
+				return unpack( retvalues )
+			elseif ( !retvalues[1] ) then
 				print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
-				print(retValues[2] )
+				print(retvalues[2] )
 			end
 		end
 	end
