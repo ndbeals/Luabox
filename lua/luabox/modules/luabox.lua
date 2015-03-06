@@ -10,10 +10,6 @@ Containers			=	{}
 DefaultFunctions	=	{}
 
 
-local function GetLibraryNameFromFileName( path )
-	return string.StripExtension( path )
-end
-
 --- Class Creator.
 -- Creates a basic class template and returns it to be used for further editing and extending.
 -- Supports infinite class inheritence.
@@ -45,6 +41,8 @@ function Class( base )
 end
 
 
+--- Library loading function.
+-- Can be called after initialize but won't really work well for client libraries.
 function LoadLibraries()
 	local librarymeta = {
 		__index = _G
@@ -58,15 +56,17 @@ function LoadLibraries()
 			AddCSLuaFile("luabox/libraries/".. File )
 		end
 
-		local library = Library(GetLibraryNameFromFileName( File ))
+		local library = Library(string.StripExtension( File ))
 
 		--librarymeta.__newindex = function(self,k,v)
 		--	library.Functions[k] = v
 		--end
 
-		setfenv(CompileFile("luabox/libraries/" .. File ) , setmetatable( {self = library} , librarymeta ) )() --convoluted line, This line. 1. Loads a library file as a function 2. Changes the environment of said function so that anything added to it is actually put into the function table of the library class created above this. and 3. Calls the loaded and edited function
+		library:SetTemplate(CompileFile("luabox/libraries/" .. File ) )
+
 	end
 end
+LoadLibraries()
 
 function CreateDefaultLibrary()
 	DefaultFunctions = {}--Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
@@ -80,7 +80,7 @@ function CreateDefaultLibrary()
 end
 
 
-Library = Class{}
+Library = Class()
 
 --- Library Class Constructor
 -- Holds basic function templates which are abstracted to work per player.
@@ -88,13 +88,19 @@ Library = Class{}
 
 function Library:Initialize( name )
 	name = name or tostring(self)
-	rawset(self , "Functions" , {})
-	rawset(self , "Name" , name)
+	self.Name = name
 
 	self:Register()
 end
 
 function Library:SetTemplate( func )
+	if type(func) == "function" then
+		self.Template = func
+	end
+end
+
+function Library:CreateLibrary( container )
+
 
 end
 
@@ -106,26 +112,6 @@ function Library:UnRegister()
 	Libraries[self.Name] = nil
 end
 
-function Library.__newindex( self , key , value )
-	self.Functions[key] = value
-end
-
-function Library:GetFunctions()
-	return self.Functions
-end
-
-function Library:AddFunction( name , func )
-	if not name then return end
-	if not func then return end
-
-	self.Functions[name] = func
-end
-
-function Library:RemoveFunction( name )
-	if not name then return end
-
-	self.Functions[name] = nil
-end
 
 
 Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed (fix wording)
@@ -191,23 +177,25 @@ function Script:Execute()
 end
 
 
-Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment
+Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment, one per player (so far)
 
-function Container:Initialize( defaultfuncs )
-	Containers[#Containers + 1] = self
+function Container:Initialize( default_libs , player )
+	Containers[#Containers + 1]	=	self
+	
+	self.Scripts				=	{}
+	self.Environments			=	{}
 
-	self.LoadedLibraries = Libraries
-	self.Scripts = {}
+	self.Libraries = default_libs or table.Copy( Libraries )
 
-	defaultfuncs = defaultfuncs or DefaultFunctions
-
-	self.Environment = Environment( defaultfuncs )
+	--self.Environment = Environment( defaultfuncs )
 
 	-- add include function directly from here, kind of hacky
 	--self.Environment.Environment.include = function()
 	--
 	--end
 end
+
+function Container:AddFunctionsToEnvironment()
 
 function Container:AddScript( func )
 	if not func then return end
@@ -308,5 +296,5 @@ end)
 
 
 
-LoadLibraries()
+
 CreateDefaultLibrary()
