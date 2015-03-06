@@ -13,8 +13,9 @@ DefaultFunctions	=	{}
 --- Class Creator.
 -- Creates a basic class template and returns it to be used for further editing and extending.
 -- Supports infinite class inheritence.
--- @param base The baseclass for the newly created class to inherit from.
--- @return class Returns the new class template to be edited.
+--@function Class
+--@param base The baseclass for the newly created class to inherit from.
+--@return class Returns the new class template to be edited.
 function Class( base )
 	local class = {} -- a new class metatable
 	class.__index = class
@@ -41,7 +42,7 @@ function Class( base )
 end
 
 
---- Library loading function.
+--- Library Loader.
 -- Can be called after initialize but won't really work well for client libraries.
 function LoadLibraries()
 	local librarymeta = {
@@ -56,13 +57,14 @@ function LoadLibraries()
 			AddCSLuaFile("luabox/libraries/".. File )
 		end
 
-		local library = Library(string.StripExtension( File ))
+		--local library =
+		Library( "luabox/libraries/"..File )
 
 		--librarymeta.__newindex = function(self,k,v)
 		--	library.Functions[k] = v
 		--end
 
-		library:SetTemplate(CompileFile("luabox/libraries/" .. File ) )
+		--library:SetTemplate(CompileFile("luabox/libraries/" .. File ) )
 
 	end
 end
@@ -79,82 +81,133 @@ function CreateDefaultLibrary()
 	end
 end
 
-
+--- Library Class
+--@section Library
 Library = Class()
 
---- Library Class Constructor
+--- Library Class Constructor.
 -- Holds basic function templates which are abstracted to work per player.
---@param name Name of the library
+--@param file file to load for the library
+function Library:Initialize( file )
+	self.Name = string.StripExtension( file ) or tostring(self)
 
-function Library:Initialize( name )
-	name = name or tostring(self)
-	self.Name = name
+	self:SetTemplate( CompileFile( file ) )
 
 	self:Register()
 end
 
+--- Set Template.
+-- Sets the library template, this template is a function, that when called, creates a library of functions specific to players (I.E those players permissions to entities, hooks, etc)
+--@param func function template, Typically an entire lua file (as files are just functions which are executed once)
 function Library:SetTemplate( func )
 	if type(func) == "function" then
 		self.Template = func
 	end
 end
 
+--- Get Template.
+-- Returns the function template of the library object
+--@return The function template
+function Library:GetTemplate()
+	return self.Template
+end
+
+--- Register Library.
+-- Registers the library with the master Luabox library list, this is called automatically in the constructor, but one can unregister and register with a different name
+function Library:Register()
+	Libraries[self.Name] = self
+end
+
+--- UnRegister Library.
+-- Unregisters the library from the master list
+function Library:UnRegister()
+	Libraries[self.Name] = nil
+end
+
+--- Get Name.
+-- Gets the name of the library
+--@return Library Name
+function Library:GetName()
+	return self.Name
+end
+
+--- Set Name.
+-- sets the name of the library
+--@param name New name
+function Library:SetName( name )
+	self.Name = name
+end
+
+
+
 function Library:CreateLibrary( container )
 
 
 end
 
-function Library:Register()
-	Libraries[self.Name] = self
-end
+--- Environment Class
+--@section Environment
+Environment = Class()
 
-function Library:UnRegister()
-	Libraries[self.Name] = nil
-end
-
-
-
-Environment = Class() -- Environment just holds all data and functions for any given lua environment. It does not control the actual function that has it's environment changed (fix wording)
-
-function Environment:Initialize( basefunctions )
+--- Environment Class Constructor.
+-- Creates an environment class which holds one lua environment. This includes variables and player specific functions.
+function Environment:Initialize()
 	basefunctions = basefunctions or DefaultFunctions
 
 	self:SetEnvironment({})
 	self:SetBaseFunctions( basefunctions )
 end
 
-function Environment:SetBaseFunctions( functab )
-	if not functab then return end
-	self:SetEnvironment( setmetatable( self.Environment , {__index = functab} ) )
-end
-
+--- Get Environment.
+-- Gets the Environment table of the given Environment class.
+--@return Environment: The Environment Table.
 function Environment:GetEnvironment()
 	return self.Environment
 end
 
+--
+--function Environment:SetBaseFunctions( functab )
+--	if not functab then return end
+--	self:SetEnvironment( setmetatable( self.Environment , {__index = functab} ) )
+--end
+
+--- Set Environment.
+-- Sets the environment table of the class to a new table.
+--@param env New enviroment to use.
 function Environment:SetEnvironment( env )
 	self.Environment = env
 	self.Environment["_G"] = env
 	self.Environment["self"] = env
 end
 
-
+--- Script Class
+--@second Script
 Script = Class()
 
-function Script:Initialize( environment , func)
+--- Script Class Constructor.
+-- Creates a Script class which contains user made scripts to be sandboxed.
+--@param environment The environment that the script will use.
+--@param funcstr The function string to be ran in the sandbox.
+function Script:Initialize( environment , funcstr )
 	self:SetEnvironment( environment )
-	self:SetFunction( func )
+	self:SetScript( funcstr )
 end
 
+--- Set Function.
+-- INTERNAL: Sets the script classes function to be sandboxed, called by the constructor.
+--@param func The function to be ran in the sandbox
 function Script:SetFunction( func )
-	if not func then return end
+	if not func or not type( func ) == "function" then return end
 
 	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
--- todo: error catch string code
+--- Set Script.
+-- Sets the script string to a string of (valid) Lua code, is then compiled to a function and set as the script's function as well.
+-- todo: error catch string code.
+--@param funcstr The function string to be ran in the sandbox.
 function Script:SetScript( funcstr )
-	if not funcstr then return end
+	if not funcstr or not type( funcstr ) == "string" then return end
 	if not self:GetEnvironment() then return end
 
 	self.Function = setfenv( CompileString( funcstr , tostring(self) ) , self.Environment:GetEnvironment() )
@@ -181,7 +234,7 @@ Container = Class()	-- Container class is in charge of executing sandbox code an
 
 function Container:Initialize( default_libs , player )
 	Containers[#Containers + 1]	=	self
-	
+
 	self.Scripts				=	{}
 	self.Environments			=	{}
 
