@@ -1,13 +1,21 @@
 --Copyright 2014 Nathan Beals
 
 --local coroutine = coroutine
+local table = table
 
 --- Luabox Module
 --@module Luabox
 module("luabox",package.seeall)
-Libraries			=	{}
-Containers			=	{}
-DefaultFunctions	=	{}
+local Libraries			=	{}
+local Containers		=	{}
+--DefaultFunctions	=	{}
+
+--- Get Libraries.
+-- Gets a copied list of all loaded Luabox libraries
+--@return Libraries: A copy of the default library tables
+function GetLibraries()
+	return table.Copy(Libraries)
+end
 
 
 --- Class Creator.
@@ -44,6 +52,7 @@ end
 
 --- Library Loader.
 -- Can be called after initialize but won't really work well for client libraries.
+-- Todo:replace.
 function LoadLibraries()
 	local librarymeta = {
 		__index = _G
@@ -152,10 +161,7 @@ Environment = Class()
 --- Environment Class Constructor.
 -- Creates an environment class which holds one lua environment. This includes variables and player specific functions.
 function Environment:Initialize()
-	basefunctions = basefunctions or DefaultFunctions
-
-	self:SetEnvironment({})
-	self:SetBaseFunctions( basefunctions )
+	
 end
 
 --- Get Environment.
@@ -181,7 +187,7 @@ function Environment:SetEnvironment( env )
 end
 
 --- Script Class
---@second Script
+--@section Script
 Script = Class()
 
 --- Script Class Constructor.
@@ -210,35 +216,52 @@ function Script:SetScript( funcstr )
 	if not funcstr or not type( funcstr ) == "string" then return end
 	if not self:GetEnvironment() then return end
 
-	self.Function = setfenv( CompileString( funcstr , tostring(self) ) , self.Environment:GetEnvironment() )
+	self:SetFunction( CompileString( funcstr , tostring(self) ))
 end
 
+--- Get Function.
+-- Gets the scripts sandboxed function.
 function Script:GetFunction()
 	return self.Function
 end
 
+--- Get Environment.
+-- Returns the environment object the script is using.
+--@return Environment.
 function Script:GetEnvironemnt()
 	return self.Environment
 end
 
+--- Set Environment.
+-- Sets the environment onject for the script to use.
+--@param environment The environment object.
 function Script:SetEnvironment( environment )
 	self.Environment = environment
 end
 
+--- Execute.
+-- Executes the script, each script should only be executed once.
+-- todo: better error handling.
 function Script:Execute()
 	return pcall( self.Function )
 end
 
 
+--- Container Class.
+--@section Container
 Container = Class()	-- Container class is in charge of executing sandbox code and holding the environment, one per player (so far)
 
-function Container:Initialize( default_libs , player )
+--- Container Class Constructor.
+-- Creates the container class instance, most users will only need to interface with this class.
+--@param player Player object the container is linked to, one container per player
+--@param default_libs Defaults libraries to use.
+function Container:Initialize( player , default_libs )
 	Containers[#Containers + 1]	=	self
 
 	self.Scripts				=	{}
 	self.Environments			=	{}
 
-	self.Libraries = default_libs or table.Copy( Libraries )
+	self.Libraries = default_libs or GetLibraries()
 
 	--self.Environment = Environment( defaultfuncs )
 
@@ -250,6 +273,12 @@ end
 
 function Container:AddFunctionsToEnvironment()
 
+end
+
+--- Add Script.
+-- Adds a new script to the container.
+--@param func Script function.
+--@return newscript: The new script object
 function Container:AddScript( func )
 	if not func then return end
 
@@ -259,6 +288,9 @@ function Container:AddScript( func )
 	return newscript
 end
 
+--- Run Scripts.
+-- Execute all of the scripts on the container object once.
+-- todo: better error checking
 function Container:RunScripts()
 
 	for i = 1 , #self.Scripts do
@@ -273,25 +305,6 @@ function Container:RunScripts()
 
 end
 
-function Container:UnloadScripts()
-	for name , lib in pairs( self.LoadedLibraries ) do
-
-	end
-end
-
---[[
-local tmp
-hook.Add("Think","TESTESTESTESTEST" , function()
-
-	for I = 1 , #Containers do
-		tmp = Containers[I]
-
-		tmp.Environment:GetEnvironment():Think()
-
-	end
-
-end)
---]]
 
 
 
