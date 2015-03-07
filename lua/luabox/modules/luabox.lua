@@ -161,7 +161,7 @@ Environment = Class()
 --- Environment Class Constructor.
 -- Creates an environment class which holds one lua environment. This includes variables and player specific functions.
 function Environment:Initialize()
-	
+	self:SetEnvironment( {} )
 end
 
 --- Get Environment.
@@ -171,12 +171,6 @@ function Environment:GetEnvironment()
 	return self.Environment
 end
 
---
---function Environment:SetBaseFunctions( functab )
---	if not functab then return end
---	self:SetEnvironment( setmetatable( self.Environment , {__index = functab} ) )
---end
-
 --- Set Environment.
 -- Sets the environment table of the class to a new table.
 --@param env New enviroment to use.
@@ -185,6 +179,21 @@ function Environment:SetEnvironment( env )
 	self.Environment["_G"] = env
 	self.Environment["self"] = env
 end
+
+--- Set Index.
+-- Sets the index of the Environment, used by the container class as a means of keeping track of what's what.
+--@param index The index number to be set
+function Environment:SetIndex( index )
+	self.Index = index
+end
+
+--- Get Index.
+-- Gets the index of the Environment, used by the container class as a means of keeping track of what's what.
+--@return Index: The index number of the environment.
+function Environment:SetIndex()
+	return self.Index
+end
+
 
 --- Script Class
 --@section Script
@@ -257,8 +266,9 @@ Container = Class()	-- Container class is in charge of executing sandbox code an
 --@param default_libs Defaults libraries to use.
 function Container:Initialize( player , default_libs )
 	Containers[#Containers + 1]	=	self
+	self.Player = player
 
-	self.Scripts				=	{}
+	self.Scripts				=	{} -- since there can be multiple scripts per environment, scripts are stored as keys and environments as the values
 	self.Environments			=	{}
 
 	self.Libraries = default_libs or GetLibraries()
@@ -271,21 +281,61 @@ function Container:Initialize( player , default_libs )
 	--end
 end
 
-function Container:AddFunctionsToEnvironment()
+--- Get Environment.
+-- Returns an already existing environment object from the containers Environment table
+--@param envindex the index of the environment in the table, starts at 1
+--@return Environment: The environment object
+function Container:GetEnvironment( envindex )
+	return self.Environments[ envindex ]
+end
 
+--- Add New Environment.
+-- Adds a new environment object to the container object, stores it in the selfEnvironments list.
+--@return Environment: The new environment object
+function Container:AddNewEnvironment()
+	local env = Environment()
+
+	env:SetIndex( table.insert( self.Environments , env ) )
+
+	return env
 end
 
 --- Add Script.
--- Adds a new script to the container.
+-- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter
 --@param func Script function.
+--@param envindex OPTIONAL: use an already existing environment, number.
 --@return newscript: The new script object
-function Container:AddScript( func )
+function Container:AddScript( func , envindex )
 	if not func then return end
+	--if not self:GetEnvironment( envindex ) then return end
 
-	local newscript = Script( self.Environment , func )
-	self.Scripts[#self.Scripts + 1] = newscript
+	local env = self:GetEnvironment( envindex ) or self:AddNewEnvironment()
+
+	local newscript = Script( env , func )
+	table.insert( self.Scripts , newscript )
 
 	return newscript
+end
+
+--- Add Functions to Environment.
+-- Populates an environment with functions specific to the container owner (player).
+-- Uses container specific list of libraries to load from
+function Container:AddFunctionsToEnvironment( env )
+	local environment = env:GetEnvironment()
+
+	local meta = {
+		__index = _G
+	}
+	for Name , Library in pairs( self.Libraries ) do
+
+			meta.__newindex = function(self,k,v)
+				environment[k] = v
+			end
+
+			setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ()
+
+	end
+
 end
 
 --- Run Scripts.
