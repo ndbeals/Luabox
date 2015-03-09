@@ -77,18 +77,7 @@ function LoadLibraries()
 
 	end
 end
-LoadLibraries()
 
-function CreateDefaultLibrary()
-	DefaultFunctions = {}--Library( "DefaultFunctions" ) -- Create a library which is all of the default libraries merged into one table to be used as the base for generic lua sandboxes
-	--DefaultFunctions:UnRegister() -- unregister it from the default functions library, so we dont get infinite recursion
-
-	for LibraryName , Library in pairs(Libraries) do
-		for Key , Value in pairs(Library:GetFunctions()) do
-			DefaultFunctions[Key] = Value
-		end
-	end
-end
 
 --- Library Class
 --@section Library
@@ -217,17 +206,6 @@ function Script:SetFunction( func )
 	self.Function = setfenv( func , self.Environment:GetEnvironment() )
 end
 
---- Set Script.
--- Sets the script string to a string of (valid) Lua code, is then compiled to a function and set as the script's function as well.
--- todo: error catch string code.
---@param funcstr The function string to be ran in the sandbox.
-function Script:SetScript( funcstr )
-	if not funcstr or not type( funcstr ) == "string" then return end
-	if not self:GetEnvironment() then return end
-
-	self:SetFunction( CompileString( funcstr , tostring(self) ))
-end
-
 --- Get Function.
 -- Gets the scripts sandboxed function.
 function Script:GetFunction()
@@ -237,7 +215,7 @@ end
 --- Get Environment.
 -- Returns the environment object the script is using.
 --@return Environment.
-function Script:GetEnvironemnt()
+function Script:GetEnvironment()
 	return self.Environment
 end
 
@@ -246,6 +224,17 @@ end
 --@param environment The environment object.
 function Script:SetEnvironment( environment )
 	self.Environment = environment
+end
+
+--- Set Script.
+-- Sets the script string to a string of (valid) Lua code, is then compiled to a function and set as the script's function as well.
+-- todo: error catch string code.
+--@param funcstr The function string to be ran in the sandbox.
+function Script:SetScript( funcstr )
+	if not funcstr or not type( funcstr ) == "string" then return end
+	if not self:GetEnvironment() then return end
+
+	self:SetFunction( CompileString( funcstr , tostring(self) ))
 end
 
 --- Execute.
@@ -297,19 +286,21 @@ function Container:AddNewEnvironment()
 
 	env:SetIndex( table.insert( self.Environments , env ) )
 
+	self:AddFunctionsToEnvironment( env )
+
 	return env
 end
 
 --- Add Script.
 -- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter
 --@param func Script function.
---@param envindex OPTIONAL: use an already existing environment, number.
+--@param env OPTIONAL: use an already existing environment
 --@return newscript: The new script object
-function Container:AddScript( func , envindex )
+function Container:AddScript( func , env )
 	if not func then return end
 	--if not self:GetEnvironment( envindex ) then return end
 
-	local env = self:GetEnvironment( envindex ) or self:AddNewEnvironment()
+	env = env or self:AddNewEnvironment()
 
 	local newscript = Script( env , func )
 	table.insert( self.Scripts , newscript )
@@ -328,12 +319,12 @@ function Container:AddFunctionsToEnvironment( env )
 	}
 	for Name , Library in pairs( self.Libraries ) do
 
-			meta.__newindex = function(self,k,v)
-				environment[k] = v
-			end
+		meta.__newindex = function(self,k,v)
+			environment[k] = v
+		end
 
-			setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ()
-
+		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player ) --
+		--PrintTable(environment)
 	end
 
 end
@@ -355,6 +346,8 @@ function Container:RunScripts()
 
 end
 
+luabox.test = true
+print(luabox.test , test )
 
 
 
@@ -365,7 +358,7 @@ hook.Call = function( name, gm, ... )
 
 	for i = 1 , #Containers do
 		container = Containers[i]
-		env = container.Environment.Environment
+		env = container.Environments[1].Environment
 
 		if env[name] then
 			retvalues = { pcall( env[name] , env , ... ) }
@@ -384,7 +377,7 @@ hook.Call = function( name, gm, ... )
 	return HookCall( name, gm, ... )
 end
 
-
+LoadLibraries()
 
 
 
@@ -409,8 +402,3 @@ concommand.Add("reload_luabox", function()
 	include("luabox/modules/luabox.lua")
 	print("luabox module reloaded")
 end)
-
-
-
-
-CreateDefaultLibrary()
