@@ -25,7 +25,17 @@ function GetContainers()
 	return Containers
 end
 
-
+--- Remove Container.
+-- Removes a container from the luabox list of containers, removing it from the execution stack.
+-- You can also remove a container by calling Container:Remove()
+--@param container
+function RemoveContainer( container )
+	if type( container ) == "number" then
+		Containers[ container ] = nil
+	elseif type( container ) == "table" and container.Remove then
+		container:Remove()
+	end
+end
 
 --- Class Creator.
 -- Creates a basic class template and returns it to be used for further editing and extending.

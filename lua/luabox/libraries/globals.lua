@@ -2,6 +2,7 @@
 local container , ply = ...
 
 print = print
+msg = msg
 
 print("globals loaded",container,ply)
 
