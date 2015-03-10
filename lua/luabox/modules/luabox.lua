@@ -17,6 +17,15 @@ function GetLibraries()
 	return table.Copy(Libraries)
 end
 
+--- Get Containers.
+-- Gets the direct list of containers that luabox currently has registered.
+-- Be careful with how you change data in this table, unintended results could occur
+--@return Containers: Direct table containing the containers.
+function GetContainers()
+	return Containers
+end
+
+
 
 --- Class Creator.
 -- Creates a basic class template and returns it to be used for further editing and extending.
@@ -34,12 +43,12 @@ function Class( base )
 	} -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
 
 
-	classmt.__call = function(_, ...) -- expose a constructor which can be called by <classname>(<args>)
+	classmt.__call = function( class , ... ) -- expose a constructor which can be called by <classname>(<args>)
 		local obj = {} -- new instance of the class to be manipulated.
-		setmetatable(obj,class)
+		setmetatable( obj , class )
 
 		if class.Initialize then
-			class.Initialize(obj,...)
+			class.Initialize( obj , ... )
 		end
 
 		return obj
@@ -63,11 +72,11 @@ function LoadLibraries()
 	for _, File in pairs(files) do
 		--print("added:","luabox/libraries/" .. File )
 		if SERVER then
-			AddCSLuaFile("luabox/libraries/".. File )
+			AddCSLuaFile("luabox/libraries/" .. File )
 		end
 
 		--local library =
-		Library( "luabox/libraries/"..File )
+		Library( "luabox/libraries/" .. File )
 
 		--librarymeta.__newindex = function(self,k,v)
 		--	library.Functions[k] = v
@@ -166,7 +175,7 @@ end
 function Environment:SetEnvironment( env )
 	self.Environment = env
 	self.Environment["_G"] = env
-	self.Environment["self"] = env
+	self.Environment["self"] = {}
 end
 
 --- Set Index.
@@ -346,37 +355,40 @@ function Container:RunScripts()
 
 end
 
-luabox.test = true
-print(luabox.test , test )
 
 
+if not luabox.HookCall then
+	luabox.HookCall = hook.Call
 
-if !HookCall then HookCall = hook.Call end
-local arg , env , container , retvalues
-hook.Call = function( name, gm, ... )
-	arg = { ... }
+	local env , container , retvalues
+	hook.Call = function( name, gm, ... )
+		--arg = { ... }
 
-	for i = 1 , #Containers do
-		container = Containers[i]
-		env = container.Environments[1].Environment
+		for i = 1 , #Containers do
+			container = Containers[i]
 
-		if env[name] then
-			retvalues = { pcall( env[name] , env , ... ) }
+			for o = 1 , #container.Environments do
+				env = container.Environments[o].Environment.self
+
+				if env[name] then
+					retvalues = { pcall( env[name] , env , ... ) }
 
 
-			if ( retvalues[1] and retvalues[2] != nil ) then
-				table.remove( retvalues, 1 )
-				return unpack( retvalues )
-			elseif ( !retvalues[1] ) then
-				print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
-				print(retvalues[2] )
+					if ( retvalues[1] and retvalues[2] != nil ) then
+
+						--table.remove( retvalues, 1 )
+						return unpack( retvalues , 1 )
+					elseif ( !retvalues[1] ) then
+						print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
+						print(retvalues[2] )
+					end
+				end
 			end
 		end
+
+		return HookCall( name, gm, ... )
 	end
-
-	return HookCall( name, gm, ... )
 end
-
 LoadLibraries()
 
 
@@ -396,6 +408,9 @@ LoadLibraries()
 
 
 concommand.Add("reload_luabox", function()
+	Containers = {}
+	Libraries = {}
+
 	for k , ply in pairs(player.GetAll()) do
 		ply:SendLua([[include("luabox/modules/luabox.lua")]])
 	end
