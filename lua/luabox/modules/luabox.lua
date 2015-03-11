@@ -8,7 +8,6 @@ local table = table
 module("luabox",package.seeall)
 local Libraries			=	{}
 local Containers		=	{}
---DefaultFunctions	=	{}
 
 --- Get Libraries.
 -- Gets a copied list of all loaded Luabox libraries
@@ -273,6 +272,7 @@ Container = Class()	-- Container class is in charge of executing sandbox code an
 --@param player Player object the container is linked to, one container per player
 --@param default_libs Defaults libraries to use.
 function Container:Initialize( player , default_libs )
+	print("ADDING CONTAINER",self, #Containers)
 	Containers[#Containers + 1]	=	self
 	self.Player = player
 
@@ -365,39 +365,48 @@ function Container:RunScripts()
 
 end
 
+--- Get Owner.
+-- Returns the container's owner.
+--@return Owner: Owner player object.
+function Container:GetOwner()
+	return self.Player
+end
+
 
 
 if not luabox.HookCall then
 	luabox.HookCall = hook.Call
+end
+local times = 0
+local env , container , retvalues
+hook.Call = function( name, gm, ... )
+	--arg = { ... }
+	--print("too much")
+	for i = 1 , #Containers do
+		container = Containers[i]
 
-	local env , container , retvalues
-	hook.Call = function( name, gm, ... )
-		--arg = { ... }
+		for o = 1 , #container.Environments do
+			env = container.Environments[o].Environment.self
 
-		for i = 1 , #Containers do
-			container = Containers[i]
-
-			for o = 1 , #container.Environments do
-				env = container.Environments[o].Environment.self
-
-				if env[name] then
-					retvalues = { pcall( env[name] , env , ... ) }
+			if env[name] then
+				--print("trying")
+				retvalues = { pcall( env[name] , env , ... ) }
 
 
-					if ( retvalues[1] and retvalues[2] != nil ) then
+				if ( retvalues[1] and retvalues[2] != nil ) then
 
-						--table.remove( retvalues, 1 )
-						return unpack( retvalues , 1 )
-					elseif ( !retvalues[1] ) then
-						print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
-						print(retvalues[2] )
-					end
+					--table.remove( retvalues, 1 )
+					return unpack( retvalues , 1 )
+				elseif ( !retvalues[1] ) then
+					print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
+					print(retvalues[2] )
+					env[name] = nil
 				end
 			end
 		end
-
-		return HookCall( name, gm, ... )
 	end
+
+	return HookCall( name, gm, ... )
 end
 LoadLibraries()
 
