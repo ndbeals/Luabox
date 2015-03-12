@@ -304,6 +304,7 @@ Networker = Class()	-- In charge of networking all of a players needs
 function Networker:Initialize( player )
 	self.SendBuffer = {}
 	self.Receivers = {}
+	self.ReceiverTemplates = {}
 
 	if SERVER then
 		self.Player = player
@@ -383,7 +384,7 @@ function Networker:WriteString( str )
 		end
 
 	end
-	PrintTable(self.CurrentBuffer)
+	--PrintTable(self.CurrentBuffer)
 end
 
 --- Write Angle.
@@ -497,7 +498,17 @@ function Networker:SendBatch( player )
 		for i = 1 , messages do
 			local message = curbuffer[i]
 			--print("Writing this:" , unpack(message) )
-			print("ACTUALLY SENT THIS MANY:",i)
+			--pring("ACTUALLY SENT THIS MANY:",i , "this many messages" , messages)
+			--pringTable(message)
+			--pring("-------------------------------------------")
+
+			if message[2] == 63 then
+				print("63")
+			end
+			if message[2] == 64 then
+				print("64")
+			end
+
 			message[1]( unpack( message , 2 ) )
 		end
 
@@ -510,7 +521,7 @@ function Networker:SendBatch( player )
 	for _ = 1 , messages do
 		table.remove( curbuffer , 1 )
 	end
-	--PrintTable(curbuffer)
+	--pringTable(curbuffer)
 
 	return ret
 end
@@ -518,13 +529,13 @@ end
 function Networker:Send()
 	local n = self:SendBatch()
 
-	--print("Base Send" , n)
+	----pring("Base Send" , n)
 	if not n then
 
 		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
 			if self.SendBuffer[1] then
 				if self:SendBatch() then
-					--print("Removing",tostring( self ))
+					----pring("Removing",tostring( self ))
 					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
 					table.remove( self.SendBuffer , 1 )
 				end
@@ -577,39 +588,6 @@ function Networker:ReadUNumber(size )
 	coroutine.yield()
 
 	return net.ReadUInt( size )
-end
-
---- Read String.
--- Reads a String from the network buffer.
---@return String.
-function Networker:ReadString()
-	coroutine.yield()
-
-	local ret , chunks = {} , net.ReadUInt( 16 )
-
-	--[[
-
-	print("read string receiveing: ", chunks ,"to read")
-
-	while chunks >= 1 do
-		coroutine.yield()
-
-		local temp = net.ReadString()
-		--print("i should see this print this amount of times:" , chunks )
-		--print("REMP REMP")
-		print("temp string chunk: " , #temp )
-
-		table.insert(ret , temp )
-
-		chunks = chunks - 1
-
-
-	end
-
-
-	return table.concat( ret )
-
-	--]]
 end
 
 --- Read Angle.
@@ -711,6 +689,39 @@ function Networker:ReadTable()
 	return net.ReadTable()
 end
 
+--- Read String.
+-- Reads a String from the network buffer.
+--@return String.
+function Networker:ReadString()
+	coroutine.yield()
+
+	local ret , chunks = {} , net.ReadUInt( 16 )
+	--pring("this should only be called once.",chunks)
+	---[[
+
+	--pring("read string receiveing: ", chunks ,"to read")
+
+	while chunks >= 1 do
+		coroutine.yield()
+
+		local temp = net.ReadString()
+		----pring("i should see this --pring this amount of times:" , chunks )
+		----pring("REMP REMP")
+		--pring("temp string chunk: " , #temp )
+
+		table.insert(ret , temp )
+
+		chunks = chunks - 1
+
+
+	end
+	----pringTable(ret)
+
+	return table.concat( ret )
+
+	--]]
+end
+
 function Networker:RT()
 	coroutine.yield()
 
@@ -722,16 +733,22 @@ function Networker:Receive( name , func )
 	if not func or not name then return end
 
 	self.Receivers[ name ] = coroutine.create( func )
+	self.ReceiverTemplates[ name ] = func
+
+	self:ProcessReceiver( name ) -- execute the coroutine once, assuming there's another coroutine.yield call because people are reading net messages.
 end
 
 function Networker:ProcessReceiver( name )
 	if not name then return end
 
-	print("Pre Call coro" , coroutine.status(self.Receivers[ name ]))
+	--pring("Pre Call coro" , coroutine.status(self.Receivers[ name ]))
 
 	coroutine.resume( self.Receivers[ name ] )
-
-	--PrintTable(self.Receivers)
+	--pring("Post Call coro" , coroutine.status(self.Receivers[ name ]))
+	----pringTable(self.Receivers)
+	if coroutine.status( self.Receivers[ name ] ) == "dead" then
+		self:Receive( name , self.ReceiverTemplates[ name ] )
+	end
 end
 
 if SERVER then
@@ -745,10 +762,10 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 
 	local networker , messages , name = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(16) , net.ReadString()
 
-	print("Messages received:" , messages )
+	--pring("Messages received:" , messages )
 
-	while messages >= 0 do
-		print("bout to call a coro")
+	while messages > 0 do
+		----pring("bout to call a coro")
 		networker:ProcessReceiver( name )
 
 		messages = messages - 1
@@ -843,7 +860,7 @@ function Container:AddFunctionsToEnvironment( env )
 		end
 
 		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , environment ) --
-		--PrintTable(environment)
+		----pringTable(environment)
 	end
 
 end
@@ -857,7 +874,7 @@ function Container:RunScripts()
 		local success , msg = self.Scripts[i]:Execute()
 
 		if not success then
-			print("errored with:" , msg)
+			--pring("errored with:" , msg)
 
 			break
 		end
