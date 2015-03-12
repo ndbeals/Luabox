@@ -448,7 +448,9 @@ function Networker:WriteTable( tab )
 end
 
 
-
+--- Send Batch.
+-- Sends a batch of info to the other realm (server to client or client to server).
+--@param player optional, defaulted to container owner.
 function Networker:SendBatch( player )
 	player = player or self.Player
 
