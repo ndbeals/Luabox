@@ -531,7 +531,7 @@ end
 
 --- Read Unsigned Integer.
 -- Reads an unsigned integer from the network buffer.
---@retun UInteger.
+--@return UInteger.
 function Networker:ReadUInteger()
 	coroutine.yield()
 
