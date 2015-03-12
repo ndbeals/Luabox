@@ -1,7 +1,9 @@
 --Copyright 2014 Nathan Beals
 
---local coroutine = coroutine
 local table = table
+local coroutine = coroutine
+local bit = bit
+
 local prn = print
 
 --- Luabox Module
@@ -12,7 +14,7 @@ local Containers		=	{}
 local ContainerLookup	=	{}
 
 print = function(...)
-	prn( RealTime() , ... )
+	prn( RealTime() ,":", ... )
 end
 
 --- Get Player Container.
@@ -305,6 +307,8 @@ function Networker:Initialize( player )
 	self.SendBuffer = {}
 	self.Receivers = {}
 	self.ReceiverTemplates = {}
+	self.PooledNames = {}
+	self.PooledNum = 0
 
 	if SERVER then
 		self.Player = player
@@ -320,15 +324,6 @@ function Networker:AddToBuffer( tab )
 	self.CurrentBuffer.Size = self.CurrentBuffer.Size + tab.Size
 
 	table.insert( self.CurrentBuffer , tab )
-end
-
---- Start Message.
--- Wrapping around net.Start to control resource usage
---@param name Name of the message to be sent
-function Networker:StartMessage( name )
-	if not name then return end
-
-	self.CurrentBuffer = self.SendBuffer[ table.insert( self.SendBuffer , {Name = name, Size = #name} ) ]
 end
 
 --- Write Integer.
@@ -363,28 +358,6 @@ function Networker:WriteUNumber( num , size )
 	size = size or 32
 
 	self:AddToBuffer( { net.WriteUInt , num , size , Size = size/8 } )
-end
-
---- Write String.
--- Writes a String to the network buffer.
---@param str String to send.
-function Networker:WriteString( str )
-	if #str <= 244 then --base message is atleast 12 bytes long
-		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
-		self:AddToBuffer( { net.WriteString , str , Size = #str } )
-	else
-		local chunks = math.ceil( #str / 244 )
-		print("writing :" , chunks , "chunks, with string of length:" , #str )
-
-		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
-
-		for index = 1 , #str , 244 do
-			print("ran writestring",#str:sub(index,index + 243))
-			self:AddToBuffer( { net.WriteString , str:sub(index,index + 243) , Size = #(str:sub(index,index + 243)) } )
-		end
-
-	end
-	--PrintTable(self.CurrentBuffer)
 end
 
 --- Write Angle.
@@ -461,91 +434,43 @@ end
 -- Writes a table to the network buffer. Don't use this often.
 --@param tab Table to send.
 function Networker:WriteTable( tab )
-	self:AddToBuffer( { net.WriteTable , tab , Size = #220 } )
+	self:AddToBuffer( { net.WriteTable , tab , Size = 200 } )
 end
 
-
---- Send Batch.
--- Sends a batch of info to the other realm (server to client or client to server).
---@param player optional, defaulted to container owner.
-function Networker:SendBatch( player )
-	player = player or self.Player
-
-	local size , messages , ret , curbuffer = 3 , 0 , true , self.SendBuffer[1] -- Starting message size at 12 bytes because I don't include the message name in the size.
-	local name = curbuffer.Name
-
-	for i = 1 , #curbuffer do
-		local message = curbuffer[i]
-
-		if math.ceil(size + message.Size) > 256 then
-			ret = false
-			break
-		end
-
-		messages = i
-		size = size + message.Size
-	end
-
-	--print("Writing: " , messages , " Messages to net" , name )
-	net.Start( "luabox_sendmessage" )
-		--print("haven't written SHITT" , net.BytesWritten() )
-
-		net.WriteUInt( messages , 16 )
-		net.WriteString( name )
-		--size = size + 2 + #name
-		--print("NETWRITING",size , net.BytesWritten() )
-
-		for i = 1 , messages do
-			local message = curbuffer[i]
-			--print("Writing this:" , unpack(message) )
-			--pring("ACTUALLY SENT THIS MANY:",i , "this many messages" , messages)
-			--pringTable(message)
-			--pring("-------------------------------------------")
-
-			if message[2] == 63 then
-				print("63")
-			end
-			if message[2] == 64 then
-				print("64")
-			end
-
-			message[1]( unpack( message , 2 ) )
-		end
-
-	if SERVER then
-		net.Send( player )
-	elseif CLIENT then
-		net.SendToServer()
-	end
-
-	for _ = 1 , messages do
-		table.remove( curbuffer , 1 )
-	end
-	--pringTable(curbuffer)
-
-	return ret
-end
-
-function Networker:Send()
-	local n = self:SendBatch()
-
-	----pring("Base Send" , n)
-	if not n then
-
-		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
-			if self.SendBuffer[1] then
-				if self:SendBatch() then
-					----pring("Removing",tostring( self ))
-					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
-					table.remove( self.SendBuffer , 1 )
-				end
-			end
-		end)
+--- Write String.
+-- Writes a String to the network buffer.
+--@param str String to send.
+function Networker:WriteString( str )
+	if #str <= 244 then --base message is atleast 12 bytes long
+		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
+		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
-		table.remove( self.SendBuffer , 1 )
+		local chunks = math.ceil( #str / 244 )
+
+		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
+
+		for index = 1 , #str , 244 do
+			self:AddToBuffer( { net.WriteString , str:sub(index,index + 243) , Size = #(str:sub(index,index + 243)) } )
+		end
+	end
+end
+
+--- Read String.
+-- Reads a String from the network buffer.
+--@return String.
+function Networker:ReadString()
+	coroutine.yield()
+	local ret , chunks = {} , net.ReadUInt( 16 )
+
+	while chunks >= 1 do
+		coroutine.yield()
+
+		table.insert( ret , net.ReadString() )
+
+		chunks = chunks - 1
 	end
 
-	self.CurrentBuffer = nil
+	return table.concat( ret )
 end
 
 --- Read Integer.
@@ -689,48 +614,139 @@ function Networker:ReadTable()
 	return net.ReadTable()
 end
 
---- Read String.
--- Reads a String from the network buffer.
---@return String.
-function Networker:ReadString()
-	coroutine.yield()
+--- Start Message.
+-- Wrapping around net.Start to control resource usage
+--@param name Name of the message to be sent
+function Networker:StartMessage( name )
+	if not name then return end
 
-	local ret , chunks = {} , net.ReadUInt( 16 )
-	--pring("this should only be called once.",chunks)
-	---[[
+	identity = self:PoolMessage( name )
 
-	--pring("read string receiveing: ", chunks ,"to read")
+	self.CurrentBuffer = self.SendBuffer[ table.insert( self.SendBuffer , { Name = identity, Size = 0 } ) ]
+end
 
-	while chunks >= 1 do
-		coroutine.yield()
+--- End Message.
+-- Simple wrapper to use the proper net.Send functions depending on server or client
+--@param player Optional, Player to send it to, serverside only
+function Networker:EndMessage( player )
+	player = player or self.Player
 
-		local temp = net.ReadString()
-		----pring("i should see this --pring this amount of times:" , chunks )
-		----pring("REMP REMP")
-		--pring("temp string chunk: " , #temp )
-
-		table.insert(ret , temp )
-
-		chunks = chunks - 1
-
-
+	if SERVER then
+		net.Send( player )
+	elseif CLIENT then
+		net.SendToServer()
 	end
-	----pringTable(ret)
+end
 
-	return table.concat( ret )
+--- Send Batch.
+-- Sends a batch of info to the other realm (server to client or client to server).
+--@param player optional, defaulted to container owner.
+function Networker:SendBatch( player )
+	player = player or self.Player
 
+	local curbuffer , size , messages , ret = self.SendBuffer[ 1 ] , 4 , 0 , true
+	local name = curbuffer.Name
+
+
+	for msg = 1 , #curbuffer do
+		local message = curbuffer[msg]
+
+		if math.ceil( size + message.Size ) > 256 then
+			size = math.ceil( size + message.Size )
+			ret = false
+			break
+		end
+
+		messages = msg
+		size = size + message.Size
+	end
+
+	net.Start( "luabox_sendmessage" )
+		net.WriteUInt( bit.lshift( name - 1 , 9 ) + ( messages - 1 ) , 32 )
+
+		for msg = 1 , messages do
+			local message = curbuffer[ msg ]
+
+			message[ 1 ]( unpack( message , 2 ) )
+		end
+
+	self:EndMessage()
+
+
+	for _ = 1 , messages do
+		table.remove( curbuffer , 1 )
+	end
+	--[[
+	for i = 1 , #curbuffer do
+		local message = curbuffer[i]
+
+		if math.ceil(size + message.Size) > 256 then
+			ret = false
+			break
+		end
+
+		messages = i
+		size = size + message.Size
+	end
+
+	--print("Writing: " , messages , " Messages to net" , name )
+	net.Start( "luabox_sendmessage" )
+	--print("TESTING",name)
+
+		local info = bit.lshift( name - 1 , 9 ) + (messages - 1)
+
+		net.WriteUInt( info , 32 )
+		--net.WriteString( name )
+		--size = size + 2 + #name
+		--print("NETWRITING",size , net.BytesWritten() )
+
+		for i = 1 , messages do
+			local message = curbuffer[i]
+
+			message[1]( unpack( message , 2 ) )
+		end
+
+	if SERVER then
+		net.Send( player )
+	elseif CLIENT then
+		net.SendToServer()
+	end
+
+	for _ = 1 , messages do
+		table.remove( curbuffer , 1 )
+	end
+	--pringTable(curbuffer)
 	--]]
+	
+	return size < 256
 end
 
-function Networker:RT()
-	coroutine.yield()
+function Networker:Send()
+	local n = self:SendBatch()
 
-	return net.ReadString()
+	----pring("Base Send" , n)
+	if not n then
+
+		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
+			if self.SendBuffer[1] then
+				if self:SendBatch() then
+					----pring("Removing",tostring( self ))
+					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
+					table.remove( self.SendBuffer , 1 )
+				end
+			end
+		end)
+	else
+		table.remove( self.SendBuffer , 1 )
+	end
+
+	self.CurrentBuffer = nil
 end
-
 
 function Networker:Receive( name , func )
 	if not func or not name then return end
+
+	--name = self:GetPooledIndex( name )
 
 	self.Receivers[ name ] = coroutine.create( func )
 	self.ReceiverTemplates[ name ] = func
@@ -751,8 +767,34 @@ function Networker:ProcessReceiver( name )
 	end
 end
 
+function Networker:PoolMessage( name )
+	if self.PooledNames[ name ] then return self.PooledNames[ name ] end
+
+	local int = self.PooledNum + 1
+
+	--if table.HasValue( self.PooledNames[ name ] , int ) then error("Tried to pool different messages with same identifier" ) end
+
+	self.PooledNames[ int ] = name
+
+	if SERVER then
+		net.Start( "luabox_poolmessagename" )
+			net.WriteString( name )
+			net.WriteUInt( int , 24 )
+		net.Send( self.Player )
+	end
+
+	self.PooledNum = int
+
+	return int
+end
+
+function Networker:GetPooledName( idx )
+	return self.PooledNames [ idx ]
+end
+
 if SERVER then
-	util.AddNetworkString("luabox_sendmessage")
+	util.AddNetworkString( "luabox_sendmessage" )
+	util.AddNetworkString( "luabox_poolmessagename" )
 end
 
 net.Receive( "luabox_sendmessage" , function( length , ply )
@@ -760,16 +802,32 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 		ply = LocalPlayer()
 	end
 
-	local networker , messages , name = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(16) , net.ReadString()
+	local networker , info = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(32)
+
+	local identity = bit.rshift( info , 9 ) + 1
+	local messages = bit.rshift( bit.lshift( info , 23 ) , 23 ) + 1
 
 	--pring("Messages received:" , messages )
 
+	print(" why is messages picking that up?",identity, messages)
+
 	while messages > 0 do
 		----pring("bout to call a coro")
-		networker:ProcessReceiver( name )
+		networker:ProcessReceiver( networker:GetPooledName( identity ) )
 
 		messages = messages - 1
 	end
+end)
+
+net.Receive( "luabox_poolmessagename" , function( length , ply )
+	if CLIENT then
+		ply = LocalPlayer()
+	end
+
+	local networker , name , poolnum = GetPlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
+
+	networker.PooledNames[ poolnum ] = name
+	--networker.PooledNums = networker.PooledNums + 1
 end)
 
 
