@@ -8,6 +8,25 @@ local table = table
 module("luabox",package.seeall)
 local Libraries			=	{}
 local Containers		=	{}
+local ContainerLookup	=	{}
+
+--- Get Player Container.
+-- Gets a the container that the player owns, caches the results because why not u
+--@return Libraries: A copy of the default library tables
+function GetPlayerContainer( player )
+	local ret = ContainerLookup[ player ]
+
+	if not ret then
+		for k , container in pairs( Containers ) do
+			if container:GetOwner() == player then
+				ret = container
+				ContainerLookup[ player ] = container
+			end
+		end
+	end
+
+	return ret
+end
 
 --- Get Libraries.
 -- Gets a copied list of all loaded Luabox libraries
@@ -43,14 +62,14 @@ end
 --@param base The baseclass for the newly created class to inherit from.
 --@return class Returns the new class template to be edited.
 function Class( base )
-	local class = {} -- a new class metatable
+	local class = { -- a new class metatable
+		base = base
+	}
 	class.__index = class
 
-	local classmt = {
-		__index = base,
-		base = base,
-	} -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
-
+	local classmt = { -- the new classes' meta table, this allows inheritence if the class has a base, and lets you create a new instance with <classname>()
+		__index = base
+	}
 
 	classmt.__call = function( class , ... ) -- expose a constructor which can be called by <classname>(<args>)
 		local obj = {} -- new instance of the class to be manipulated.
@@ -262,6 +281,191 @@ function Script:Execute()
 	return pcall( self.Function )
 end
 
+--- Networker Class.
+--@section Networker
+Networker = Class()	-- In charge of networking all of a players needs
+
+--- Networker Class Constructor.
+-- Creates a Networker class instance, Limits network usage so users don't flood the server.
+--@param player Player to send it to (if used server side)
+function Networker:Initialize( player )
+
+	self.WriteBuffer = {}
+	self.Receivers = {}
+
+	self.ReadBuffer = {}
+
+	if SERVER then
+		self.Player = player
+	end
+
+
+end
+
+if SERVER then
+util.AddNetworkString("luabox_sendmessage")
+end
+
+--- Start Message.
+-- Wrapping around net.Start to control resource usage
+--@param name Name of the message to be sent
+function Networker:StartMessage( name )
+	if not name then return end
+
+	self.CurrentBuffer = self.WriteBuffer[ table.insert( self.WriteBuffer , {Name = name, Size = #name} ) ]
+end
+
+--- Write Integer.
+-- Writes an Integer to the network buffer.
+--@param int Integer to send.
+function Networker:WriteInteger( int )
+	table.insert( self.CurrentBuffer , { net.WriteInt , int , 32 , Size = 4 } )
+	self.CurrentBuffer.Size = self.CurrentBuffer.Size + 4
+
+	--self.Size = self.Size + 4
+end
+
+--- Write Number.
+-- Writes a Number of a given size in bits to the network buffer.
+--@param num Number to be written.
+--@param size Size in bits of number.
+function Networker:WriteNumber( num , size )
+	size = size or 32
+
+	table.insert(  self.CurrentBuffer , { net.WriteInt , num , size + 1, Size = size/8 } )
+
+	--self.Size = self.Size + size / 8
+end
+
+--- Write String.
+-- Writes a String to the network buffer.
+--@param str String to send.
+function Networker:WriteString( str )
+	table.insert( self.CurrentBuffer , { net.WriteString , str , Size = #str } )
+
+	--self.Size = self.Size + 4
+end
+
+function Networker:SendBatch( player )
+	player = player or self.Player
+
+	local size = 3 -- messages seem to start at 3 bytes large for some reason, probably the pooled name(number) for the message.
+	local curbuffer = self.WriteBuffer[1]
+	local name = curbuffer.Name
+	local messages = 0
+
+	local ret = true
+
+	for i = 1 , #curbuffer do
+		local message = curbuffer[i]
+
+		if (size + message.Size) > 255 then
+			ret = false
+			break
+		end
+
+		messages = i
+		size = size + message.Size
+	end
+
+	--print("Writing: " , messages , " Messages to net" , name )
+	net.Start( "luabox_sendmessage" )
+		--print("haven't written SHITT" , net.BytesWritten() )
+
+		net.WriteUInt( messages , 16 )
+		net.WriteString( name )
+		--size = size + 2 + #name
+		--print("NETWRITING",size , net.BytesWritten() )
+
+		for i = 1 , messages do
+			local message = curbuffer[i]
+			--print("Writing this:" , unpack(message) )
+
+			message[1]( unpack( message , 2 ) )
+		end
+
+	if SERVER then
+		net.Send( player )
+	elseif CLIENT then
+		net.SendToServer()
+	end
+
+	for _ = 1 , messages do
+		table.remove( curbuffer , 1 )
+	end
+
+	return ret
+end
+
+function Networker:Send()
+	local n = self:SendBatch()
+
+	--print("Base Send" , n)
+	if not n then
+
+		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
+			if self.WriteBuffer[1] then
+				if self:SendBatch() then
+					--print("Removing",tostring( self ))
+					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
+					table.remove( self.WriteBuffer , 1 )
+				end
+			end
+		end)
+	else
+		table.remove( self.WriteBuffer , 1 )
+	end
+
+
+
+
+	self.CurrentBuffer = nil
+	--table.remove( self.WriteBuffer , 1 )
+end
+
+
+function Networker:ReadInteger()
+	coroutine.yield()
+
+	return net.ReadInt( 32 )
+end
+
+function Networker:Receive( name , func )
+	if not func or not name then return end
+
+	self.Receivers[ name ] = coroutine.create( func )
+
+end
+
+
+net.Receive( "luabox_sendmessage" , function( length , ply )
+
+	if CLIENT then
+		ply = LocalPlayer()
+	end
+
+	local container = GetPlayerContainer( ply )
+
+	--print(container,CLIENT)
+
+	local n = container:GetNetworker()
+
+	local messages , name = net.ReadUInt(16) , net.ReadString()
+
+	--print( "RECEIVED:" , ply , messages , name  )
+
+	messages = messages + 1
+
+
+	for i = 1 , messages do
+		--print("does this run?")
+		coroutine.resume( n.Receivers[ name ] )
+	end
+
+end)
+
+
+
 
 --- Container Class.
 --@section Container
@@ -272,9 +476,14 @@ Container = Class()	-- Container class is in charge of executing sandbox code an
 --@param player Player object the container is linked to, one container per player
 --@param default_libs Defaults libraries to use.
 function Container:Initialize( player , default_libs )
-	print("ADDING CONTAINER",self, #Containers)
-	Containers[#Containers + 1]	=	self
+	self.Index = table.insert( Containers , self )
+
+	if CLIENT then
+		player = LocalPlayer()
+	end
 	self.Player = player
+
+	self.Networker = Networker( player )
 
 	self.Scripts				=	{} -- since there can be multiple scripts per environment, scripts are stored as keys and environments as the values
 	self.Environments			=	{}
@@ -342,7 +551,7 @@ function Container:AddFunctionsToEnvironment( env )
 			environment[k] = v
 		end
 
-		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player ) --
+		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , environment ) --
 		--PrintTable(environment)
 	end
 
@@ -372,7 +581,18 @@ function Container:GetOwner()
 	return self.Player
 end
 
+--- Remove.
+-- Removes the container from the master list and therefore execution, cleans up variables nicely and maybe calls the GC.
+function Container:Remove()
+	table.remove( Containers , self.Index )
+end
 
+--- Get Networker.
+-- Returns the container's networker object.
+--@return Networker: Networker object.
+function Container:GetNetworker()
+	return self.Networker
+end
 
 if not luabox.HookCall then
 	luabox.HookCall = hook.Call
