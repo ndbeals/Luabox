@@ -2,6 +2,7 @@
 
 --local coroutine = coroutine
 local table = table
+local prn = print
 
 --- Luabox Module
 --@module Luabox
@@ -9,6 +10,10 @@ module("luabox",package.seeall)
 local Libraries			=	{}
 local Containers		=	{}
 local ContainerLookup	=	{}
+
+print = function(...)
+	prn( RealTime() , ... )
+end
 
 --- Get Player Container.
 -- Gets a the container that the player owns, caches the results because why not.
@@ -364,10 +369,21 @@ end
 --@param str String to send.
 function Networker:WriteString( str )
 	if #str <= 244 then --base message is atleast 12 bytes long
+		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
-		return
 	else
+		local chunks = math.ceil( #str / 244 )
+		print("writing :" , chunks , "chunks, with string of length:" , #str )
 
+		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
+
+		for index = 1 , #str , 244 do
+			print("ran writestring",#str:sub(index,index + 243))
+			self:AddToBuffer( { net.WriteString , str:sub(index,index + 243) , Size = #(str:sub(index,index + 243)) } )
+		end
+
+	end
+	PrintTable(self.CurrentBuffer)
 end
 
 --- Write Angle.
@@ -454,7 +470,7 @@ end
 function Networker:SendBatch( player )
 	player = player or self.Player
 
-	local size , messages , ret , curbuffer = 12 , 0 , true , self.SendBuffer[1] -- Starting message size at 12 bytes because I don't include the message name in the size.
+	local size , messages , ret , curbuffer = 3 , 0 , true , self.SendBuffer[1] -- Starting message size at 12 bytes because I don't include the message name in the size.
 	local name = curbuffer.Name
 
 	for i = 1 , #curbuffer do
@@ -481,7 +497,7 @@ function Networker:SendBatch( player )
 		for i = 1 , messages do
 			local message = curbuffer[i]
 			--print("Writing this:" , unpack(message) )
-
+			print("ACTUALLY SENT THIS MANY:",i)
 			message[1]( unpack( message , 2 ) )
 		end
 
@@ -494,6 +510,7 @@ function Networker:SendBatch( player )
 	for _ = 1 , messages do
 		table.remove( curbuffer , 1 )
 	end
+	--PrintTable(curbuffer)
 
 	return ret
 end
@@ -568,7 +585,31 @@ end
 function Networker:ReadString()
 	coroutine.yield()
 
-	return net.ReadString()
+	local ret , chunks = {} , net.ReadUInt( 16 )
+
+	--[[
+
+	print("read string receiveing: ", chunks ,"to read")
+
+	while chunks >= 1 do
+		coroutine.yield()
+
+		local temp = net.ReadString()
+		--print("i should see this print this amount of times:" , chunks )
+		--print("REMP REMP")
+		print("temp string chunk: " , #temp )
+
+		table.insert(ret , temp )
+
+		chunks = chunks - 1
+
+
+	end
+
+
+	return table.concat( ret )
+
+	--]]
 end
 
 --- Read Angle.
@@ -670,6 +711,12 @@ function Networker:ReadTable()
 	return net.ReadTable()
 end
 
+function Networker:RT()
+	coroutine.yield()
+
+	return net.ReadString()
+end
+
 
 function Networker:Receive( name , func )
 	if not func or not name then return end
@@ -680,7 +727,11 @@ end
 function Networker:ProcessReceiver( name )
 	if not name then return end
 
+	print("Pre Call coro" , coroutine.status(self.Receivers[ name ]))
+
 	coroutine.resume( self.Receivers[ name ] )
+
+	--PrintTable(self.Receivers)
 end
 
 if SERVER then
@@ -694,12 +745,14 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 
 	local networker , messages , name = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(16) , net.ReadString()
 
+	print("Messages received:" , messages )
+
 	while messages >= 0 do
+		print("bout to call a coro")
 		networker:ProcessReceiver( name )
 
 		messages = messages - 1
 	end
-
 end)
 
 
