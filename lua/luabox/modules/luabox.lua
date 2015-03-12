@@ -11,8 +11,9 @@ local Containers		=	{}
 local ContainerLookup	=	{}
 
 --- Get Player Container.
--- Gets a the container that the player owns, caches the results because why not u
---@return Libraries: A copy of the default library tables
+-- Gets a the container that the player owns, caches the results because why not.
+--@param player The player to get the container of.
+--@return Container: The player's container.
 function GetPlayerContainer( player )
 	local ret = ContainerLookup[ player ]
 
@@ -180,6 +181,8 @@ function Library:CreateLibrary( container )
 
 end
 
+
+
 --- Environment Class
 --@section Environment
 Environment = Class()
@@ -219,6 +222,8 @@ end
 function Environment:SetIndex()
 	return self.Index
 end
+
+
 
 
 --- Script Class
@@ -281,6 +286,9 @@ function Script:Execute()
 	return pcall( self.Function )
 end
 
+
+
+
 --- Networker Class.
 --@section Networker
 Networker = Class()	-- In charge of networking all of a players needs
@@ -289,21 +297,23 @@ Networker = Class()	-- In charge of networking all of a players needs
 -- Creates a Networker class instance, Limits network usage so users don't flood the server.
 --@param player Player to send it to (if used server side)
 function Networker:Initialize( player )
-
-	self.WriteBuffer = {}
+	self.SendBuffer = {}
 	self.Receivers = {}
-
-	self.ReadBuffer = {}
 
 	if SERVER then
 		self.Player = player
 	end
-
-
 end
 
-if SERVER then
-util.AddNetworkString("luabox_sendmessage")
+--- Add To Buffer.
+-- adds a variable to the send buffer, basically a wrapper for table.insert.
+--@param tab Table input to be added to the send buffer
+function Networker:AddToBuffer( tab )
+	if not self.CurrentBuffer then error("No Current buffer, no message started",2) end
+
+	self.CurrentBuffer.Size = self.CurrentBuffer.Size + tab.Size
+
+	table.insert( self.CurrentBuffer , tab )
 end
 
 --- Start Message.
@@ -312,17 +322,21 @@ end
 function Networker:StartMessage( name )
 	if not name then return end
 
-	self.CurrentBuffer = self.WriteBuffer[ table.insert( self.WriteBuffer , {Name = name, Size = #name} ) ]
+	self.CurrentBuffer = self.SendBuffer[ table.insert( self.SendBuffer , {Name = name, Size = #name} ) ]
 end
 
 --- Write Integer.
 -- Writes an Integer to the network buffer.
 --@param int Integer to send.
 function Networker:WriteInteger( int )
-	table.insert( self.CurrentBuffer , { net.WriteInt , int , 32 , Size = 4 } )
-	self.CurrentBuffer.Size = self.CurrentBuffer.Size + 4
+	self:AddToBuffer( { net.WriteInt , int , 32 , Size = 4 } )
+end
 
-	--self.Size = self.Size + 4
+--- Write Unsigned Integer.
+-- Writes an unsigned integer to the network buffer.
+--@param int Integer to send.
+function Networker:WriteUInteger( int )
+	self:AddToBuffer( { net.WriteUInt , int , 32 , Size = 4 } )
 end
 
 --- Write Number.
@@ -332,34 +346,119 @@ end
 function Networker:WriteNumber( num , size )
 	size = size or 32
 
-	table.insert(  self.CurrentBuffer , { net.WriteInt , num , size + 1, Size = size/8 } )
+	self:AddToBuffer( { net.WriteInt , num , size , Size = size/8 } )
+end
 
-	--self.Size = self.Size + size / 8
+--- Write Unsigned Number.
+-- Writes an Unsigned Number of a given size in bits to the network buffer.
+--@param num Number to be written.
+--@param size Size in bits of number.
+function Networker:WriteUNumber( num , size )
+	size = size or 32
+
+	self:AddToBuffer( { net.WriteUInt , num , size , Size = size/8 } )
 end
 
 --- Write String.
 -- Writes a String to the network buffer.
 --@param str String to send.
 function Networker:WriteString( str )
-	table.insert( self.CurrentBuffer , { net.WriteString , str , Size = #str } )
+	if #str <= 244 then --base message is atleast 12 bytes long
+		self:AddToBuffer( { net.WriteString , str , Size = #str } )
+		return
+	else
 
-	--self.Size = self.Size + 4
 end
+
+--- Write Angle.
+-- Writes an angle to the network buffer.
+--@param ang Angle to send.
+function Networker:WriteAngle( ang )
+	self:AddToBuffer( { net.WriteAngle , ang , Size = 8 } )
+end
+
+--- Write Bit.
+-- Writes a bit to the network buffer.
+--@param bit Bit to send.
+function Networker:WriteBit( bit )
+	self:AddToBuffer( { net.WriteBit , bit , Size = 0.125 } )
+end
+
+--- Write Bool.
+-- Writes a boolean to the network buffer.
+--@param bool Boolean to send.
+function Networker:WriteBool( bool )
+	self:AddToBuffer( { net.WriteBool, bool , Size = 0.125 } )
+end
+
+--- Write Color.
+-- Writes a color to the network buffer.
+--@param col Color object to send.
+function Networker:WriteColor( col )
+	self:AddToBuffer( { net.WriteColor , col , Size = 4 } )
+end
+
+--- Write Data.
+-- Writes binary string data to the network buffer.
+--@param data Data to send.
+function Networker:WriteData( data )
+	self:AddToBuffer( { net.WriteData , data , Size = #data } )
+end
+
+--- Write Doube.
+-- Writes a double to the network buffer.
+--@param dbl Double to send.
+function Networker:WriteDouble( dbl )
+	self:AddToBuffer( { net.WriteDouble , dbl , Size = 8 } )
+end
+
+--- Write Entity.
+-- Writes an Entity to the network buffer.
+--@param ent Entity to send.
+function Networker:WriteEntity( ent )
+	self:AddToBuffer( { net.WriteEntity , ent , Size = 2 } )
+end
+
+--- Write Float.
+-- Writes a float to the network buffer.
+--@param float Float to send.
+function Networker:WriteFloat( float )
+	self:AddToBuffer( { net.WriteFloat , float , Size = 4 } )
+end
+
+--- Write Normal.
+-- Writes a vector normal to the network buffer.
+--@param nrm Normal to send
+function Networker:WriteNormal( nrm )
+	self:AddToBuffer( { net.WriteNormal , nrm , Size = 4 } )
+end
+
+--- Write Vector.
+-- Writes a Vector to the network buffer.
+--@param vec Vector to send.
+function Networker:WriteVector( vec )
+	self:AddToBuffer( { net.WriteVector , vec , Size = 9 } )
+end
+
+--- Write Table.
+-- Writes a table to the network buffer. Don't use this often.
+--@param tab Table to send.
+function Networker:WriteTable( tab )
+	self:AddToBuffer( { net.WriteTable , tab , Size = #220 } )
+end
+
+
 
 function Networker:SendBatch( player )
 	player = player or self.Player
 
-	local size = 3 -- messages seem to start at 3 bytes large for some reason, probably the pooled name(number) for the message.
-	local curbuffer = self.WriteBuffer[1]
+	local size , messages , ret , curbuffer = 12 , 0 , true , self.SendBuffer[1] -- Starting message size at 12 bytes because I don't include the message name in the size.
 	local name = curbuffer.Name
-	local messages = 0
-
-	local ret = true
 
 	for i = 1 , #curbuffer do
 		local message = curbuffer[i]
 
-		if (size + message.Size) > 255 then
+		if math.ceil(size + message.Size) > 256 then
 			ret = false
 			break
 		end
@@ -404,62 +503,199 @@ function Networker:Send()
 	if not n then
 
 		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
-			if self.WriteBuffer[1] then
+			if self.SendBuffer[1] then
 				if self:SendBatch() then
 					--print("Removing",tostring( self ))
 					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
-					table.remove( self.WriteBuffer , 1 )
+					table.remove( self.SendBuffer , 1 )
 				end
 			end
 		end)
 	else
-		table.remove( self.WriteBuffer , 1 )
+		table.remove( self.SendBuffer , 1 )
 	end
 
-
-
-
 	self.CurrentBuffer = nil
-	--table.remove( self.WriteBuffer , 1 )
 end
 
-
+--- Read Integer.
+-- Reads a signed integer from the network buffer.
+--@return Integer.
 function Networker:ReadInteger()
 	coroutine.yield()
 
 	return net.ReadInt( 32 )
 end
 
+--- Read Unsigned Integer.
+-- Reads an unsigned integer from the network buffer.
+--@retun UInteger.
+function Networker:ReadUInteger()
+	coroutine.yield()
+
+	return net.ReadUInt( 32 )
+end
+
+--- Read Number.
+-- Reads a Number of a given size in bits from the network buffer.
+--@param size Size in bits of number.
+--@return Number.
+function Networker:ReadNumber( size )
+	size = size or 32
+
+	coroutine.yield()
+
+	return net.ReadInt( size )
+end
+
+--- Read Unsigned Number.
+-- Reads an Unsigned Number of a given size in bits from the network buffer.
+--@param size Size in bits of number.
+--@return UNumber.
+function Networker:ReadUNumber(size )
+	size = size or 32
+
+	coroutine.yield()
+
+	return net.ReadUInt( size )
+end
+
+--- Read String.
+-- Reads a String from the network buffer.
+--@return String.
+function Networker:ReadString()
+	coroutine.yield()
+
+	return net.ReadString()
+end
+
+--- Read Angle.
+-- Reads an angle from the network buffer.
+--@return Angle.
+function Networker:ReadAngle()
+	coroutine.yield()
+
+	return net.ReadAngle()
+end
+
+--- Read Bit.
+-- Reads a bit from the network buffer.
+--@return Bit.
+function Networker:ReadBit( )
+	coroutine.yield()
+
+	return net.ReadBit()
+end
+
+--- Read Bool.
+-- Reads a boolean from the network buffer.
+--@return Boolean.
+function Networker:ReadBool()
+	coroutine.yield()
+
+	return net.ReadBool()
+end
+
+--- Read Color.
+-- Reads a color from the network buffer.
+--@return Color.
+function Networker:ReadColor()
+	coroutine.yield()
+
+	return net.ReadColor()
+end
+
+--- Read Data.
+-- Reads binary string data from the network buffer.
+--@return Data.
+function Networker:ReadData()
+	coroutine.yield()
+
+	return net.ReadData()
+end
+
+--- Read Doube.
+-- Reads a double from the network buffer.
+--@return Double.
+function Networker:ReadDouble()
+	coroutine.yield()
+
+	return net.ReadDouble()
+end
+
+--- Read Entity.
+-- Reads an Entity from the network buffer.
+--@return Entity.
+function Networker:ReadEntity()
+	coroutine.yield()
+
+	return net.ReadEntity()
+end
+
+--- Read Float.
+-- Reads a float from the network buffer.
+--@return Float.
+function Networker:ReadFloat()
+	coroutine.yield()
+
+	return net.ReadFloat()
+end
+
+--- Read Normal.
+-- Reads a vector normal from the network buffer.
+--@return Normal.
+function Networker:ReadNormal()
+	coroutine.yield()
+
+	return net.ReadNormal()
+end
+
+--- Read Vector.
+-- Reads a Vector from the network buffer.
+--@return Vector.
+function Networker:ReadVector()
+	coroutine.yield()
+
+	return net.ReadVector()
+end
+
+--- Read Table.
+-- Reads a table from the network buffer, Don't use much.
+--@param tab Table to send.
+function Networker:ReadTable()
+	coroutine.yield()
+
+	return net.ReadTable()
+end
+
+
 function Networker:Receive( name , func )
 	if not func or not name then return end
 
 	self.Receivers[ name ] = coroutine.create( func )
-
 end
 
+function Networker:ProcessReceiver( name )
+	if not name then return end
+
+	coroutine.resume( self.Receivers[ name ] )
+end
+
+if SERVER then
+	util.AddNetworkString("luabox_sendmessage")
+end
 
 net.Receive( "luabox_sendmessage" , function( length , ply )
-
 	if CLIENT then
 		ply = LocalPlayer()
 	end
 
-	local container = GetPlayerContainer( ply )
+	local networker , messages , name = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(16) , net.ReadString()
 
-	--print(container,CLIENT)
+	while messages >= 0 do
+		networker:ProcessReceiver( name )
 
-	local n = container:GetNetworker()
-
-	local messages , name = net.ReadUInt(16) , net.ReadString()
-
-	--print( "RECEIVED:" , ply , messages , name  )
-
-	messages = messages + 1
-
-
-	for i = 1 , messages do
-		--print("does this run?")
-		coroutine.resume( n.Receivers[ name ] )
+		messages = messages - 1
 	end
 
 end)
