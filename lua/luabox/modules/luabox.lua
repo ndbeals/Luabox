@@ -441,15 +441,15 @@ end
 -- Writes a String to the network buffer.
 --@param str String to send.
 function Networker:WriteString( str )
-	if #str <= 244 then --base message is atleast 12 bytes long
+	if #str <= 250 then --base message is atleast 12 bytes long
 		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
-		local chunks = math.ceil( #str / 244 )
+		local chunks = math.ceil( #str / 250 )
 
 		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
 
-		for index = 1 , #str , 244 do
+		for index = 1 , #str , 250 do
 			self:AddToBuffer( { net.WriteString , str:sub(index,index + 243) , Size = #(str:sub(index,index + 243)) } )
 		end
 	end
@@ -623,6 +623,7 @@ function Networker:StartMessage( name )
 	identity = self:PoolMessage( name )
 
 	self.CurrentBuffer = self.SendBuffer[ table.insert( self.SendBuffer , { Name = identity, Size = 0 } ) ]
+	self.CurrentBuffer.Position=0
 end
 
 --- End Message.
@@ -644,16 +645,18 @@ end
 function Networker:SendBatch( player )
 	player = player or self.Player
 
-	local curbuffer , size , messages , ret = self.SendBuffer[ 1 ] , 4 , 0 , true
-	local name = curbuffer.Name
-
+	local curbuffer , size , messages = self.SendBuffer[ 1 ] , 4 , 0
 
 	for msg = 1 , #curbuffer do
-		local message = curbuffer[msg]
+		local message = curbuffer[msg + curbuffer.Position ]
+
+		if not message then
+			size = size - 256 -- make sure it returns true
+			break
+		end
 
 		if math.ceil( size + message.Size ) > 256 then
 			size = math.ceil( size + message.Size )
-			ret = false
 			break
 		end
 
@@ -662,82 +665,41 @@ function Networker:SendBatch( player )
 	end
 
 	net.Start( "luabox_sendmessage" )
-		net.WriteUInt( bit.lshift( name - 1 , 9 ) + ( messages - 1 ) , 32 )
+		net.WriteUInt( bit.lshift( curbuffer.Name - 1 , 9 ) + ( messages - 1 ) , 32 )
 
 		for msg = 1 , messages do
-			local message = curbuffer[ msg ]
+			local message = curbuffer[ msg + curbuffer.Position ]
 
 			message[ 1 ]( unpack( message , 2 ) )
+
 		end
+		curbuffer.Position =  curbuffer.Position + messages
 
 	self:EndMessage()
 
-
-	for _ = 1 , messages do
-		table.remove( curbuffer , 1 )
-	end
-	--[[
-	for i = 1 , #curbuffer do
-		local message = curbuffer[i]
-
-		if math.ceil(size + message.Size) > 256 then
-			ret = false
-			break
-		end
-
-		messages = i
-		size = size + message.Size
-	end
-
-	--print("Writing: " , messages , " Messages to net" , name )
-	net.Start( "luabox_sendmessage" )
-	--print("TESTING",name)
-
-		local info = bit.lshift( name - 1 , 9 ) + (messages - 1)
-
-		net.WriteUInt( info , 32 )
-		--net.WriteString( name )
-		--size = size + 2 + #name
-		--print("NETWRITING",size , net.BytesWritten() )
-
-		for i = 1 , messages do
-			local message = curbuffer[i]
-
-			message[1]( unpack( message , 2 ) )
-		end
-
-	if SERVER then
-		net.Send( player )
-	elseif CLIENT then
-		net.SendToServer()
-	end
-
-	for _ = 1 , messages do
-		table.remove( curbuffer , 1 )
-	end
-	--pringTable(curbuffer)
-	--]]
-	
 	return size < 256
 end
 
+---Finish Send.
+-- Removes the net data from the send buffer.
+function Networker:FinishSend()
+	table.remove( self.SendBuffer , 1 )
+end
+
+
 function Networker:Send()
-	local n = self:SendBatch()
-
-	----pring("Base Send" , n)
-	if not n then
-
+	if not self:SendBatch() then
 		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
 			if self.SendBuffer[1] then
 				if self:SendBatch() then
-					----pring("Removing",tostring( self ))
 					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
-					table.remove( self.SendBuffer , 1 )
+
+					self:FinishSend()
 				end
 			end
 		end)
 	else
-		table.remove( self.SendBuffer , 1 )
+		self:FinishSend()
 	end
 
 	self.CurrentBuffer = nil
@@ -809,7 +771,7 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 
 	--pring("Messages received:" , messages )
 
-	print(" why is messages picking that up?",identity, messages)
+	--print(" why is messages picking that up?",identity, messages)
 
 	while messages > 0 do
 		----pring("bout to call a coro")
