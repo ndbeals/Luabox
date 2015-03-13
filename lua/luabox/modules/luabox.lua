@@ -441,16 +441,18 @@ end
 -- Writes a String to the network buffer.
 --@param str String to send.
 function Networker:WriteString( str )
+	print("fuck")
 	if #str <= 250 then --base message is atleast 12 bytes long
 		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
 		local chunks = math.ceil( #str / 250 )
+		print("shit chunks" , chunks)
 
 		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
 
 		for index = 1 , #str , 250 do
-			self:AddToBuffer( { net.WriteString , str:sub(index,index + 243) , Size = #(str:sub(index,index + 243)) } )
+			self:AddToBuffer( { net.WriteString , str:sub(index,index + 249) , Size = #(str:sub(index,index + 249)) } )
 		end
 	end
 end
@@ -719,11 +721,8 @@ end
 function Networker:ProcessReceiver( name )
 	if not name then return end
 
-	--pring("Pre Call coro" , coroutine.status(self.Receivers[ name ]))
-
 	coroutine.resume( self.Receivers[ name ] )
-	--pring("Post Call coro" , coroutine.status(self.Receivers[ name ]))
-	----pringTable(self.Receivers)
+
 	if coroutine.status( self.Receivers[ name ] ) == "dead" then
 		self:Receive( name , self.ReceiverTemplates[ name ] )
 	end
@@ -769,13 +768,8 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 	local identity = bit.rshift( info , 9 ) + 1
 	local messages = bit.rshift( bit.lshift( info , 23 ) , 23 ) + 1
 
-	--pring("Messages received:" , messages )
-
-	--print(" why is messages picking that up?",identity, messages)
-
 	while messages > 0 do
-		----pring("bout to call a coro")
-		networker:ProcessReceiver( networker:GetPooledName( identity ) )
+		networker:ProcessReceiver( networker.PooledNames[ identity ] )
 
 		messages = messages - 1
 	end
@@ -789,7 +783,6 @@ net.Receive( "luabox_poolmessagename" , function( length , ply )
 	local networker , name , poolnum = GetPlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
 
 	networker.PooledNames[ poolnum ] = name
-	--networker.PooledNums = networker.PooledNums + 1
 end)
 
 
