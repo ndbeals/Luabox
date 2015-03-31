@@ -14,7 +14,7 @@ local Containers		=	{}
 local ContainerLookup	=	{}
 
 print = function(...)
-	prn( RealTime() ,":", ... )
+	prn( RealTime() ,"\t:", ... )
 end
 
 --- Get Player Container.
@@ -31,6 +31,23 @@ function GetPlayerContainer( player )
 				ContainerLookup[ player ] = container
 			end
 		end
+	end
+
+	return ret
+end
+
+--- New Container.
+-- Basically Get Player Container but it creates a container if a player doesn't have one, returns the player's container if there already is one
+--@param player The player owner of the container to create (or return).
+--@return Container: The player's container.
+function NewContainer( player )
+	if CLIENT then player = LocalPlayer() end
+	if not player or not IsValid( player ) then error("No Player object provided",2) end
+
+	local ret = GetPlayerContainer( player )
+
+	if not ret then
+		return luabox.Container( player )
 	end
 
 	return ret
@@ -441,13 +458,11 @@ end
 -- Writes a String to the network buffer.
 --@param str String to send.
 function Networker:WriteString( str )
-	print("fuck")
-	if #str <= 250 then --base message is atleast 12 bytes long
+	if #str <= 250 then --base message is atleast 4 bytes long
 		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
 		local chunks = math.ceil( #str / 250 )
-		print("shit chunks" , chunks)
 
 		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
 
@@ -625,7 +640,7 @@ function Networker:StartMessage( name )
 	identity = self:PoolMessage( name )
 
 	self.CurrentBuffer = self.SendBuffer[ table.insert( self.SendBuffer , { Name = identity, Size = 0 } ) ]
-	self.CurrentBuffer.Position=0
+	self.CurrentBuffer.Position = 0
 end
 
 --- End Message.
@@ -715,15 +730,23 @@ function Networker:Receive( name , func )
 	self.Receivers[ name ] = coroutine.create( func )
 	self.ReceiverTemplates[ name ] = func
 
-	self:ProcessReceiver( name ) -- execute the coroutine once, assuming there's another coroutine.yield call because people are reading net messages.
+	self.FirstExecute = true -- Work around for coroutines needing to be resumed once to start their execution, Runs only when a new coroutine hasn't been ran at all.
+
 end
 
 function Networker:ProcessReceiver( name )
 	if not name then return end
+	local coro = self.Receivers[ name ]
 
-	coroutine.resume( self.Receivers[ name ] )
+	if self.FirstExecute then
+		coroutine.resume( coro )
 
-	if coroutine.status( self.Receivers[ name ] ) == "dead" then
+		self.FirstExecute = false
+	end
+
+	coroutine.resume( coro )
+
+	if coroutine.status( coro ) == "dead" then
 		self:Receive( name , self.ReceiverTemplates[ name ] )
 	end
 end
@@ -736,6 +759,7 @@ function Networker:PoolMessage( name )
 	--if table.HasValue( self.PooledNames[ name ] , int ) then error("Tried to pool different messages with same identifier" ) end
 
 	self.PooledNames[ int ] = name
+	self.PooledNames[ name ] = int
 
 	if SERVER then
 		net.Start( "luabox_poolmessagename" )
@@ -768,6 +792,7 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 	local identity = bit.rshift( info , 9 ) + 1
 	local messages = bit.rshift( bit.lshift( info , 23 ) , 23 ) + 1
 
+	print( "Receive" , networker ,GetPlayerContainer( ply ))
 	while messages > 0 do
 		networker:ProcessReceiver( networker.PooledNames[ identity ] )
 
@@ -783,6 +808,7 @@ net.Receive( "luabox_poolmessagename" , function( length , ply )
 	local networker , name , poolnum = GetPlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
 
 	networker.PooledNames[ poolnum ] = name
+	networker.PooledNames[ name ] = poolnum
 end)
 
 

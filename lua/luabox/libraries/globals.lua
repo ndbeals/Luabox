@@ -2,22 +2,26 @@
 local container , ply , env = ...
 --local n = container:GetNetworker()
 
-local p = print
+--local p = print
 
 function print( ... )
-    p("this sghould",SERVER)
+    --print("REALM SERVER:",SERVER)
     if SERVER then
+        ---[[
         local input = {...}
 
         for key , value in pairs( input ) do
-            input[ key] = tostring( value )
+            input[ key ] = tostring( value )
         end
-        local n = container:GetNetworker()
-        local str= table.concat( input , "    " )
+
+
+        local str= table.concat( input , "\t" )
+        --]]
         --print("who not run",str)
+        local n = container:GetNetworker()
         n:StartMessage( "func_print" )
             --print("sending",n.CurrentBuffer)
-            n:WriteString( "test" )
+            n:WriteString( str )
             --print(" wtf")
         n:Send()
         --print("NO WAY")
@@ -28,11 +32,12 @@ function print( ... )
         --print(...)
     end
 end
+
 local n = container:GetNetworker()
 n:Receive( "func_print" , function()
-    print("receiving")
+    --print("receiving")
     local str = n:ReadString()
-    print( "PRINTING SOMETHING:", str )
+    print( str )
 end)
 
 
