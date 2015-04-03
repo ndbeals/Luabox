@@ -623,7 +623,7 @@ end
 --- Start Message.
 -- Wrapping around net.Start to control resource usage
 --@param name Name of the message to be sent
-function Networker:StartMessage( name )
+function Networker:Start( name )
 	if not name then return end
 
 	identity = self:PoolMessage( name )
@@ -741,26 +741,28 @@ function Networker:ProcessReceiver( name )
 	end
 end
 
-function Networker:PoolMessage( name )
+function Networker:PoolMessage( name , index )
 	if self.PooledNames[ name ] then return self.PooledNames[ name ] end
 
-	local int = self.PooledNum + 1
+	if not index then
+		index = self.PooledNum + 1
+	end
 
 	--if table.HasValue( self.PooledNames[ name ] , int ) then error("Tried to pool different messages with same identifier" ) end
 
-	self.PooledNames[ int ] = name
-	self.PooledNames[ name ] = int
+	self.PooledNames[ index ] = name
+	self.PooledNames[ name ] = index
 
 	if SERVER then
 		net.Start( "luabox_poolmessagename" )
 			net.WriteString( name )
-			net.WriteUInt( int , 24 )
+			net.WriteUInt( index , 24 )
 		net.Send( self.Player )
 	end
 
-	self.PooledNum = int
+	self.PooledNum = index
 
-	return int
+	return index
 end
 
 function Networker:GetPooledName( idx )
@@ -781,7 +783,7 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 
 	local identity = bit.rshift( info , 9 ) + 1
 	local messages = bit.rshift( bit.lshift( info , 23 ) , 23 ) + 1
-	
+
 	while messages > 0 do
 		networker:ProcessReceiver( networker.PooledNames[ identity ] )
 
