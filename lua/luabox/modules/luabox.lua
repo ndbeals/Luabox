@@ -18,10 +18,13 @@ print = function(...)
 end
 
 --- Get Player Container.
--- Gets a the container that the player owns, caches the results because why not.
+-- Gets a the container that the player owns, caches the results because why not. creates a container if there isn't one.
 --@param player The player to get the container of.
 --@return Container: The player's container.
-function GetPlayerContainer( player )
+function PlayerContainer( player )
+	if CLIENT then player = LocalPlayer() end
+	if not player or not IsValid( player ) then error("No Player object provided",2) end
+
 	local ret = ContainerLookup[ player ]
 
 	if not ret then
@@ -31,23 +34,9 @@ function GetPlayerContainer( player )
 				ContainerLookup[ player ] = container
 			end
 		end
-	end
-
-	return ret
-end
-
---- New Container.
--- Basically Get Player Container but it creates a container if a player doesn't have one, returns the player's container if there already is one
---@param player The player owner of the container to create (or return).
---@return Container: The player's container.
-function NewContainer( player )
-	if CLIENT then player = LocalPlayer() end
-	if not player or not IsValid( player ) then error("No Player object provided",2) end
-
-	local ret = GetPlayerContainer( player )
-
-	if not ret then
-		return luabox.Container( player )
+		if not ret then
+			ret = luabox.Container( player )
+		end
 	end
 
 	return ret
@@ -336,7 +325,7 @@ end
 -- adds a variable to the send buffer, basically a wrapper for table.insert.
 --@param tab Table input to be added to the send buffer
 function Networker:AddToBuffer( tab )
-	if not self.CurrentBuffer then error("No Current buffer, no message started",2) end
+	if not self.CurrentBuffer then error("No Current buffer, no message started",3) end
 
 	self.CurrentBuffer.Size = self.CurrentBuffer.Size + tab.Size
 
@@ -734,6 +723,7 @@ function Networker:Receive( name , func )
 
 end
 
+
 function Networker:ProcessReceiver( name )
 	if not name then return end
 	local coro = self.Receivers[ name ]
@@ -787,12 +777,11 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 		ply = LocalPlayer()
 	end
 
-	local networker , info = GetPlayerContainer( ply ):GetNetworker() , net.ReadUInt(32)
+	local networker , info = PlayerContainer( ply ):GetNetworker() , net.ReadUInt(32)
 
 	local identity = bit.rshift( info , 9 ) + 1
 	local messages = bit.rshift( bit.lshift( info , 23 ) , 23 ) + 1
-
-	print( "Receive" , networker ,GetPlayerContainer( ply ))
+	
 	while messages > 0 do
 		networker:ProcessReceiver( networker.PooledNames[ identity ] )
 
@@ -805,7 +794,7 @@ net.Receive( "luabox_poolmessagename" , function( length , ply )
 		ply = LocalPlayer()
 	end
 
-	local networker , name , poolnum = GetPlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
+	local networker , name , poolnum = PlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
 
 	networker.PooledNames[ poolnum ] = name
 	networker.PooledNames[ name ] = poolnum
