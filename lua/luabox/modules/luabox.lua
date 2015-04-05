@@ -232,7 +232,7 @@ end
 --- Get Index.
 -- Gets the index of the Environment, used by the container class as a means of keeping track of what's what.
 --@return Index: The index number of the environment.
-function Environment:SetIndex()
+function Environment:GetIndex()
 	return self.Index
 end
 
@@ -316,16 +316,34 @@ function Networker:Initialize( player )
 	self.PooledNames = {}
 	self.PooledNum = 0
 
-	if SERVER then
-		self.Player = player
-	end
+	self.Player = player
 end
+
+--- Set Player.
+-- Sets the player object the networker class will send data too (only useful serverside as clients always send to server)
+-- Cannot change player while any buffers are open.
+--@param player Player to send it to.
+function Networker:SetPlayer( player )
+	if not player or not IsValid( player ) then error("Invalid Player object",2) return end
+
+	if #self.SendBuffer > 0 then error("Cannot change player while any buffers are still open",2) return end
+
+	self.Player = player
+end
+
+--- Get Player.
+-- Gets the player object the networker class will send data too (only useful serverside as clients always send to server)
+--@return player Player to send it to.
+function Networker:GetPlayer( player )
+	return self.Player
+end
+
 
 --- Add To Buffer.
 -- adds a variable to the send buffer, basically a wrapper for table.insert.
 --@param tab Table input to be added to the send buffer
 function Networker:AddToBuffer( tab )
-	if not self.CurrentBuffer then error("No Current buffer, no message started",3) end
+	if not self.CurrentBuffer then error("No Current buffer, no message started",2) end
 
 	self.CurrentBuffer.Size = self.CurrentBuffer.Size + tab.Size
 
@@ -452,6 +470,8 @@ function Networker:WriteString( str )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
 		local chunks = math.ceil( #str / 250 )
+
+		if chunks > 2^16 then error("Net message too large >15.625 Mega Bytes (why on earth do you need a single string this large?)",3) end
 
 		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
 
@@ -826,22 +846,37 @@ function Container:Initialize( player , default_libs )
 	self.Scripts				=	{} -- since there can be multiple scripts per environment, scripts are stored as keys and environments as the values
 	self.Environments			=	{}
 
-	self.Libraries = default_libs or GetLibraries()
-
-	--self.Environment = Environment( defaultfuncs )
-
-	-- add include function directly from here, kind of hacky
-	--self.Environment.Environment.include = function()
-	--
-	--end
+	self:SetLibraries( default_libs or GetLibraries() )
 end
 
---- Get Environment.
+--- Set Libraries.
+-- Sets the list of libraries that the container will use
+--@param libraries the list of libraries to use
+function Container:SetLibraries( libraries )
+	self.Libraries = libraries
+end
+
+--- Get Libraries.
+-- Gets the list of libraries that the container will use
+--@return libraries the list of libraries to use
+function Container:SetLibraries()
+	return self.Libraries
+end
+
+--- Select Environment.
 -- Returns an already existing environment object from the containers Environment table
---@param envindex the index of the environment in the table, starts at 1
+--@param index the index of the environment in the table, starts at 1
 --@return Environment: The environment object
-function Container:GetEnvironment( envindex )
-	return self.Environments[ envindex ]
+function Container:SelectEnvironment( index )
+	return self.Environments[ index ]
+end
+
+--- Select Script.
+-- Returns an already existing Script object from the containers script table
+--@param index the index of the script in the table, starts at 1
+--@return Script: The script object
+function Container:SelectScript( index )
+	return self.Scripts[ index ]
 end
 
 --- Add New Environment.
@@ -904,7 +939,6 @@ function Container:RunScripts()
 		local success , msg = self.Scripts[i]:Execute()
 
 		if not success then
-			--pring("errored with:" , msg)
 
 			break
 		end

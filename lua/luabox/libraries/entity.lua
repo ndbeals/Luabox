@@ -32,7 +32,7 @@ end
 function Entity( num )
     local ent = G_Entity( num )
     --print("first",num,ent)
-    if not ent or not IsValid( ent ) then return end
+    if not ent or not IsValid( ent ) then return EntLookup[ ent ] end
     --print("still")
     local p_ent = EntLookup[ ent ]
 
@@ -52,5 +52,10 @@ function Entity( num )
     --print("stillest")
     return p_ent
 end
+
+local null_proxy = EntityProxy( NULL ) --there's always a NULL entity, so I i'm going to create one here, i may also have to edit this to make functions called on it error out.
+
+EntLookup[ NULL ] = null_proxy
+EntLookup[ null_proxy ] = NULL
 
 print("entity lib loaded")
