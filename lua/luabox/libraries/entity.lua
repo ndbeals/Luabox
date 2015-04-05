@@ -13,6 +13,8 @@ function EntityProxy:Initialize( ent )
     EntLookup[ ent ] = self
     EntLookup[ self ] = ent
 
+    if ent == NULL or not IsValid(ent) then return end
+
     self.EntIndex = ent:EntIndex()
     self.Class = ent:GetClass()
 end

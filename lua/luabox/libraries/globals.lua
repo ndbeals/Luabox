@@ -5,6 +5,8 @@ local netc = container:GetNetworker()
 CLIENT = CLIENT
 SERVER = SERVER
 
+RealTime = RealTime
+
 function print( ... )
     if SERVER then
         local input = {...}

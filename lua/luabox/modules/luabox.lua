@@ -2,12 +2,16 @@
 
 local table = table
 local coroutine = coroutine
+local error = error
 local bit = bit
 
 local prn = print
 
+local sethook = debug.sethook
+
 --- Luabox Module
 --@module Luabox
+luabox = luabox or {}
 module("luabox",package.seeall)
 local Libraries			=	{}
 local Containers		=	{}
@@ -186,14 +190,6 @@ end
 function Library:SetName( name )
 	self.Name = name
 end
-
-
-
-function Library:CreateLibrary( container )
-
-
-end
-
 
 
 --- Environment Class
@@ -847,6 +843,15 @@ function Container:Initialize( player , default_libs )
 	self.Environments			=	{}
 
 	self:SetLibraries( default_libs or GetLibraries() )
+
+	self.ops = 0
+	self.OpHook = function(event)
+		self.ops = self.ops + 500
+		if self.ops > 100000 then
+			sethook(nil)
+			error("Operations quota exceeded.",2)
+		end
+	end
 end
 
 --- Set Libraries.
@@ -859,7 +864,7 @@ end
 --- Get Libraries.
 -- Gets the list of libraries that the container will use
 --@return libraries the list of libraries to use
-function Container:SetLibraries()
+function Container:GetLibraries()
 	return self.Libraries
 end
 
@@ -916,19 +921,35 @@ function Container:AddFunctionsToEnvironment( env )
 	local environment = env:GetEnvironment()
 
 	local meta = {
-		__index = _G
+		__index = _G,
+		__newindex = function(self,k,v)
+			environment[k] = v
+		end
 	}
 	for Name , Library in pairs( self.Libraries ) do
 
-		meta.__newindex = function(self,k,v)
-			environment[k] = v
-		end
-
 		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , environment ) --
-		----pringTable(environment)
 	end
-
 end
+
+local function infloop_detection_replacement()
+	error("Infinite Loop Detected!",2)
+end
+
+--- Run Sandbox Function.
+-- Runs the sandboxed function you pass it with the arguments you pass it. this assumes the functions you pass it were created in the sandbox
+--@param func the function to call
+--@param ... varargs to call the function with
+function Container:RunSandboxFunction( func , ... )
+	self.ops = 0
+
+	sethook(self.OpHook,"",500)
+	local rt = {pcall( func , ... )}
+	sethook(infloop_detection_replacement,"",500000000)
+
+	return rt
+end
+
 
 --- Run Scripts.
 -- Execute all of the scripts on the container object once.
@@ -982,16 +1003,18 @@ hook.Call = function( name, gm, ... )
 
 			if env[name] then
 				--print("trying")
-				retvalues = { pcall( env[name] , env , ... ) }
+				retvalues = container:RunSandboxFunction( env[name] , env , ... )--{ pcall( env[name] , env , ... ) }
 
 
 				if ( retvalues[1] and retvalues[2] != nil ) then
 
 					--table.remove( retvalues, 1 )
-					return unpack( retvalues , 1 )
+					return unpack( retvalues , 2 )
 				elseif ( !retvalues[1] ) then
 					print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
-					print(retvalues[2] )
+					--print(unpack(retvalues,2) )
+					print(retvalues[2])
+
 					env[name] = nil
 				end
 			end
@@ -1014,17 +1037,18 @@ LoadLibraries()
 
 
 
-
-
+function reload()
+	Containers = {}
+	Libraries = {}
+	include("luabox/modules/luabox.lua")
+	print("luabox module reloaded")
+end
 
 
 concommand.Add("reload_luabox", function()
-	Containers = {}
-	Libraries = {}
+	reload()
 
 	for k , ply in pairs(player.GetAll()) do
-		ply:SendLua([[include("luabox/modules/luabox.lua")]])
+		ply:SendLua([[luabox.reload()]])
 	end
-	include("luabox/modules/luabox.lua")
-	print("luabox module reloaded")
 end)

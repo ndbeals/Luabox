@@ -2,7 +2,7 @@
 
 luabox = luabox or {}--										Create the global table
 
-if SERVER then--											--this file strictly loads the main files of the project, all other file loading happens in sh_luabox.lua
+if SERVER then
 	AddCSLuaFile("luabox/cl_luabox.lua")
 	AddCSLuaFile("luabox/sh_luabox.lua")
 
