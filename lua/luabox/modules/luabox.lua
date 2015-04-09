@@ -142,9 +142,11 @@ Library = Class()
 -- Holds basic function templates which are abstracted to work per player.
 --@param file file to load for the library
 function Library:Initialize( file )
-	self.Name = string.StripExtension( file ) or tostring(self)
+	print()
+	self.Path = file
+	self.Name = string.StripExtension( string.GetFileFromFilename( file ) ) or tostring(self)
 
-	self:SetTemplate( CompileFile( file ) )
+	self:SetTemplateFile( file )
 
 	self:Register()
 end
@@ -155,6 +157,15 @@ end
 function Library:SetTemplate( func )
 	if type(func) == "function" then
 		self.Template = func
+	end
+end
+
+--- Set Template File.
+-- Sets the library template, this template is a function, that when called, creates a library of functions specific to players (I.E those players permissions to entities, hooks, etc)
+--@param func function template, Typically an entire lua file (as files are just functions which are executed once)
+function Library:SetTemplateFile( name )
+	if file.Exists( name , "LUA" ) then
+		self:SetTemplate( CompileFile( name ) )
 	end
 end
 
@@ -191,6 +202,21 @@ function Library:SetName( name )
 	self.Name = name
 end
 
+--- Get Path.
+-- Gets the Path of the library
+--@return Library Path
+function Library:GetPath()
+	return self.Path
+end
+
+--- Set Path.
+-- sets the Path of the library
+--@param Path New Path
+function Library:SetPath( path )
+	self.Path = path
+end
+
+
 
 --- Environment Class
 --@section Environment
@@ -199,6 +225,8 @@ Environment = Class()
 --- Environment Class Constructor.
 -- Creates an environment class which holds one lua environment. This includes variables and player specific functions.
 function Environment:Initialize()
+	self.RemoveHooks = {}
+
 	self:SetEnvironment( {} )
 end
 
@@ -232,7 +260,29 @@ function Environment:GetIndex()
 	return self.Index
 end
 
+--- Call on Remove.
+-- Adds a function to be called on remove
+--@param name Unique identifier of remove hook
+--@param func function to be called
+function Environment:CallOnRemove( name , func )
+	self.RemoveHooks[ name ] = func
+end
 
+--- Remove.
+-- Removes all references on the self table.
+function Environment:Remove()
+
+	for name , func in pairs( self.RemoveHooks ) do
+		local err , msg  = pcall( func )
+		if not err then
+			print( "Unloading function: ''" .. name .. "'' Failed with error:" , msg )
+		end
+	end
+
+	for key , val in pairs( self ) do
+		self[key] = nil
+	end
+end
 
 
 --- Script Class
@@ -294,6 +344,29 @@ end
 function Script:Execute()
 	return pcall( self.Function )
 end
+
+--- Set Index.
+-- Sets the index of the Script, used by the container class as a means of keeping track of what's what.
+--@param index The index number to be set
+function Script:SetIndex( index )
+	self.Index = index
+end
+
+--- Get Index.
+-- Gets the index of the Script, used by the container class as a means of keeping track of what's what.
+--@return Index: The index number of the Script.
+function Script:GetIndex()
+	return self.Index
+end
+
+--- Remove.
+-- Removes all references on the self table.
+function Script:Remove()
+	for key , val in pairs( self ) do
+		self[key] = nil
+	end
+end
+
 
 
 
@@ -868,52 +941,6 @@ function Container:GetLibraries()
 	return self.Libraries
 end
 
---- Select Environment.
--- Returns an already existing environment object from the containers Environment table
---@param index the index of the environment in the table, starts at 1
---@return Environment: The environment object
-function Container:SelectEnvironment( index )
-	return self.Environments[ index ]
-end
-
---- Select Script.
--- Returns an already existing Script object from the containers script table
---@param index the index of the script in the table, starts at 1
---@return Script: The script object
-function Container:SelectScript( index )
-	return self.Scripts[ index ]
-end
-
---- Add New Environment.
--- Adds a new environment object to the container object, stores it in the selfEnvironments list.
---@return Environment: The new environment object
-function Container:AddNewEnvironment()
-	local env = Environment()
-
-	env:SetIndex( table.insert( self.Environments , env ) )
-
-	self:AddFunctionsToEnvironment( env )
-
-	return env
-end
-
---- Add Script.
--- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter
---@param func Script function.
---@param env OPTIONAL: use an already existing environment
---@return newscript: The new script object
-function Container:AddScript( func , env )
-	if not func then return end
-	--if not self:GetEnvironment( envindex ) then return end
-
-	env = env or self:AddNewEnvironment()
-
-	local newscript = Script( env , func )
-	table.insert( self.Scripts , newscript )
-
-	return newscript
-end
-
 --- Add Functions to Environment.
 -- Populates an environment with functions specific to the container owner (player).
 -- Uses container specific list of libraries to load from
@@ -926,10 +953,162 @@ function Container:AddFunctionsToEnvironment( env )
 			environment[k] = v
 		end
 	}
-	for Name , Library in pairs( self.Libraries ) do
+	for Name , Library in pairs( self:GetLibraries() ) do
 
-		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , environment ) --
+		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , env ) --
 	end
+end
+
+--- Select Environment.
+-- Returns an already existing environment object from the containers Environment table
+--@param index the index of the environment in the table, starts at 1
+--@return Environment: The environment object
+function Container:SelectEnvironment( index )
+	return self.Environments[ index ]
+end
+
+--- Add New Environment.
+-- Adds a new environment object to the container object, stores it in the selfEnvironments list.
+--@return Environment: The new environment object.
+function Container:AddNewEnvironment()
+	local env = Environment()
+
+	table.insert( self:GetEnvironments() , env )
+	env:SetIndex( #self:GetEnvironments() )
+
+	self:AddFunctionsToEnvironment( env )
+
+	return env
+end
+
+--- Get Environments.
+-- Returns the environment table.
+--@return Environments: The environments table.
+function Container:GetEnvironments()
+	return self.Environments
+end
+
+--- Remove Environment.
+-- Removes a specific environment and all associated scripts.
+--@param env either the index or the actual environment
+function Container:RemoveEnvironment( env )
+	env = self:SelectEnvironment( env ) or env
+
+	if type( env ) == "table" and self:SelectEnvironment( env:GetIndex() ) then
+
+		for _ , script in pairs( self:GetScripts() ) do
+			if script:GetEnvironment() == env then
+				script:Remove()
+			end
+		end
+
+		table.remove( self:GetEnvironments() , env:GetIndex() )
+
+		env:Remove()
+	end
+end
+
+--- Select Script.
+-- Returns an already existing Script object from the containers script table.
+--@param index the index of the script in the table, starts at 1.
+--@return Script: The script object.
+function Container:SelectScript( index )
+	return self.Scripts[ index ]
+end
+
+--- Add Script.
+-- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter.
+--@param func Script function.
+--@param env OPTIONAL: use an already existing environment.
+--@return newscript: The new script object.
+function Container:AddScript( func , env )
+	if not func then return end
+	--if not self:GetEnvironment( envindex ) then return end
+
+	env = env or self:AddNewEnvironment()
+
+	local newscript = Script( env , func )
+
+	table.insert( self:GetScripts() , newscript )
+	newscript:SetIndex( #self:GetScripts() )
+
+	return newscript
+end
+
+--- Get Scripts.
+-- Returns the Scripts table.
+--@return Scripts: The scripts table.
+function Container:GetScripts()
+	return self.Scripts
+end
+
+--- Run Scripts.
+-- Execute all of the scripts on the container object once.
+-- todo: better error checking.
+function Container:RunScripts()
+
+	for i = 1 , #self.Scripts do
+		local success , msg = self.Scripts[i]:Execute()
+
+		if not success then
+
+			break
+		end
+	end
+
+end
+
+--- Remove Script.
+-- Removes a specific script and all associated scripts.
+--@param env either the index or the actual script
+function Container:RemoveScript( script )
+	script = self:SelectScript( script ) or script
+
+	if type( script ) == "table" and self:SelectScript( script:GetIndex() ) then
+		print("iscript")
+		table.remove( self:GetScripts() , script:GetIndex() )
+
+		script:Remove()
+	end
+end
+
+--- Get Owner.
+-- Returns the container's owner.
+--@return Owner: Owner player object.
+function Container:GetOwner()
+	return self.Player
+end
+
+--- Remove.
+-- Removes the container from the master list and therefore execution, cleans up variables nicely and maybe calls the GC.
+function Container:Remove()
+	for _ , env in pairs( self:GetEnvironments() ) do
+		env:Remove()
+	end
+
+	for _ , script in pairs( self:GetScripts() ) do
+		script:Remove()
+	end
+
+	table.remove( Containers , self.Index )
+	ContainersLookup[ self:GetOwner() ] = nil
+
+
+	local mem = collectgarbage( "count" )
+	print("c4:",mem)
+	for key , val in pairs( self ) do
+		self[key] = nil
+	end
+	local data = collectgarbage( "collect" )
+	local meme = collectgarbage( "count" )
+	print(data,"c5:",mem - meme)
+end
+
+--- Get Networker.
+-- Returns the container's networker object.
+--@return Networker: Networker object.
+function Container:GetNetworker()
+	return self.Networker
 end
 
 local function infloop_detection_replacement()
@@ -945,46 +1124,9 @@ function Container:RunSandboxFunction( func , ... )
 
 	sethook(self.OpHook,"",500)
 	local rt = {pcall( func , ... )}
-	sethook(infloop_detection_replacement,"",500000000)
+	sethook(nil)
 
 	return rt
-end
-
-
---- Run Scripts.
--- Execute all of the scripts on the container object once.
--- todo: better error checking
-function Container:RunScripts()
-
-	for i = 1 , #self.Scripts do
-		local success , msg = self.Scripts[i]:Execute()
-
-		if not success then
-
-			break
-		end
-	end
-
-end
-
---- Get Owner.
--- Returns the container's owner.
---@return Owner: Owner player object.
-function Container:GetOwner()
-	return self.Player
-end
-
---- Remove.
--- Removes the container from the master list and therefore execution, cleans up variables nicely and maybe calls the GC.
-function Container:Remove()
-	table.remove( Containers , self.Index )
-end
-
---- Get Networker.
--- Returns the container's networker object.
---@return Networker: Networker object.
-function Container:GetNetworker()
-	return self.Networker
 end
 
 if not luabox.HookCall then
@@ -992,7 +1134,8 @@ if not luabox.HookCall then
 end
 local times = 0
 local env , container , retvalues
-hook.Call = function( name, gm, ... )
+local hooke = {}
+hooke.Call = function( name, gm, ... )
 	--arg = { ... }
 	--print("too much")
 	for i = 1 , #Containers do

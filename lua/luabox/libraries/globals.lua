@@ -76,6 +76,14 @@ netc:Receive( "func_printtab" , function()
 end)
 
 
+env:CallOnRemove( "Test_Removing" , function()
+    print("REMOVING")
+
+    error("teste error")
+
+end)
+
+
 Msg = print
 MsgN = print
 
