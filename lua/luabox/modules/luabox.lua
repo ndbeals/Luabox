@@ -53,6 +53,18 @@ function GetLibraries()
 	return table.Copy(Libraries)
 end
 
+--- Copy Table.
+-- Copyies a table and returns the new copy
+function CopyTable( tab )
+	local ret = {}
+
+	for key , val in pairs( tab ) do
+		ret[ key ] = val
+	end
+
+	return ret
+end
+
 --- Get Containers.
 -- Gets the direct list of containers that luabox currently has registered.
 -- Be careful with how you change data in this table, unintended results could occur
@@ -70,6 +82,18 @@ function RemoveContainer( container )
 		Containers[ container ] = nil
 	elseif type( container ) == "table" and container.Remove then
 		container:Remove()
+	end
+end
+
+--- Table Has Value.
+-- Checks if the table has contains the value and returns the key of the first occurence of the variable
+--@param table table to check
+--@param value value to see if table has it
+function TableHasValue( table , value )
+	for k , v in pairs ( table ) do
+		if v == value then
+			return k
+		end
 	end
 end
 
@@ -246,20 +270,6 @@ function Environment:SetEnvironment( env )
 	self.Environment["self"] = {}
 end
 
---- Set Index.
--- Sets the index of the Environment, used by the container class as a means of keeping track of what's what.
---@param index The index number to be set
-function Environment:SetIndex( index )
-	self.Index = index
-end
-
---- Get Index.
--- Gets the index of the Environment, used by the container class as a means of keeping track of what's what.
---@return Index: The index number of the environment.
-function Environment:GetIndex()
-	return self.Index
-end
-
 --- Call on Remove.
 -- Adds a function to be called on remove
 --@param name Unique identifier of remove hook
@@ -294,6 +304,7 @@ Script = Class()
 --@param environment The environment that the script will use.
 --@param funcstr The function string to be ran in the sandbox.
 function Script:Initialize( environment , funcstr )
+	self:SetName( tostring(self) )
 	self:SetEnvironment( environment )
 	self:SetScript( funcstr )
 end
@@ -335,28 +346,34 @@ function Script:SetScript( funcstr )
 	if not funcstr or not type( funcstr ) == "string" then return end
 	if not self:GetEnvironment() then return end
 
-	self:SetFunction( CompileString( funcstr , tostring(self) ))
+	self:SetFunction( CompileString( funcstr , self:GetName() ) )
 end
 
 --- Execute.
 -- Executes the script, each script should only be executed once.
 -- todo: better error handling.
 function Script:Execute()
-	return pcall( self.Function )
+	local err = pcall( self.Function , OnScriptError )
+
+	if err then
+		return true
+	else
+		return false
+	end
 end
 
---- Set Index.
--- Sets the index of the Script, used by the container class as a means of keeping track of what's what.
---@param index The index number to be set
-function Script:SetIndex( index )
-	self.Index = index
+--- Set Name.
+-- Sets the Name of the Script, used by the container class as a means of keeping track of what's what.
+--@param name The Name number to be set
+function Script:SetName( name )
+	self.Name = name
 end
 
---- Get Index.
--- Gets the index of the Script, used by the container class as a means of keeping track of what's what.
---@return Index: The index number of the Script.
-function Script:GetIndex()
-	return self.Index
+--- Get Name.
+-- Gets the Name of the Script, used by the container class as a means of keeping track of what's what.
+--@return Name: The Name number of the Script.
+function Script:GetName()
+	return self.Name
 end
 
 --- Remove.
@@ -385,7 +402,7 @@ function Networker:Initialize( player )
 	self.PooledNames = {}
 	self.PooledNum = 0
 
-	self.Player = player
+	self:SetPlayer( player )
 end
 
 --- Set Player.
@@ -403,7 +420,7 @@ end
 --- Get Player.
 -- Gets the player object the networker class will send data too (only useful serverside as clients always send to server)
 --@return player Player to send it to.
-function Networker:GetPlayer( player )
+function Networker:GetPlayer()
 	return self.Player
 end
 
@@ -602,7 +619,7 @@ end
 -- Reads an Unsigned Number of a given size in bits from the network buffer.
 --@param size Size in bits of number.
 --@return UNumber.
-function Networker:ReadUNumber(size )
+function Networker:ReadUNumber( size )
 	size = size or 32
 
 	coroutine.yield()
@@ -622,7 +639,7 @@ end
 --- Read Bit.
 -- Reads a bit from the network buffer.
 --@return Bit.
-function Networker:ReadBit( )
+function Networker:ReadBit()
 	coroutine.yield()
 
 	return net.ReadBit()
@@ -723,12 +740,9 @@ end
 
 --- End Message.
 -- Simple wrapper to use the proper net.Send functions depending on server or client
---@param player Optional, Player to send it to, serverside only
-function Networker:EndMessage( player )
-	player = player or self.Player
-
+function Networker:EndMessage()
 	if SERVER then
-		net.Send( player )
+		net.Send( self.Player )
 	elseif CLIENT then
 		net.SendToServer()
 	end
@@ -737,9 +751,7 @@ end
 --- Send Batch.
 -- Sends a batch of info to the other realm (server to client or client to server).
 --@param player optional, defaulted to container owner.
-function Networker:SendBatch( player )
-	player = player or self.Player
-
+function Networker:SendBatch()
 	local curbuffer , size , messages = self.SendBuffer[ 1 ] , 4 , 0
 
 	for msg = 1 , #curbuffer do
@@ -837,8 +849,6 @@ function Networker:PoolMessage( name , index )
 		index = self.PooledNum + 1
 	end
 
-	--if table.HasValue( self.PooledNames[ name ] , int ) then error("Tried to pool different messages with same identifier" ) end
-
 	self.PooledNames[ index ] = name
 	self.PooledNames[ name ] = index
 
@@ -864,10 +874,6 @@ if SERVER then
 end
 
 net.Receive( "luabox_sendmessage" , function( length , ply )
-	if CLIENT then
-		ply = LocalPlayer()
-	end
-
 	local networker , info = PlayerContainer( ply ):GetNetworker() , net.ReadUInt(32)
 
 	local identity = bit.rshift( info , 9 ) + 1
@@ -881,10 +887,6 @@ net.Receive( "luabox_sendmessage" , function( length , ply )
 end)
 
 net.Receive( "luabox_poolmessagename" , function( length , ply )
-	if CLIENT then
-		ply = LocalPlayer()
-	end
-
 	local networker , name , poolnum = PlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
 
 	networker.PooledNames[ poolnum ] = name
@@ -974,7 +976,6 @@ function Container:AddNewEnvironment()
 	local env = Environment()
 
 	table.insert( self:GetEnvironments() , env )
-	env:SetIndex( #self:GetEnvironments() )
 
 	self:AddFunctionsToEnvironment( env )
 
@@ -994,7 +995,7 @@ end
 function Container:RemoveEnvironment( env )
 	env = self:SelectEnvironment( env ) or env
 
-	if type( env ) == "table" and self:SelectEnvironment( env:GetIndex() ) then
+	if type( env ) == "table" and TableHasValue( self:GetEnvironments() , env ) then
 
 		for _ , script in pairs( self:GetScripts() ) do
 			if script:GetEnvironment() == env then
@@ -1002,7 +1003,7 @@ function Container:RemoveEnvironment( env )
 			end
 		end
 
-		table.remove( self:GetEnvironments() , env:GetIndex() )
+		table.remove( self:GetEnvironments() , TableHasValue( self.Environments , env ) )
 
 		env:Remove()
 	end
@@ -1023,14 +1024,12 @@ end
 --@return newscript: The new script object.
 function Container:AddScript( func , env )
 	if not func then return end
-	--if not self:GetEnvironment( envindex ) then return end
 
 	env = env or self:AddNewEnvironment()
 
 	local newscript = Script( env , func )
 
 	table.insert( self:GetScripts() , newscript )
-	newscript:SetIndex( #self:GetScripts() )
 
 	return newscript
 end
@@ -1064,9 +1063,9 @@ end
 function Container:RemoveScript( script )
 	script = self:SelectScript( script ) or script
 
-	if type( script ) == "table" and self:SelectScript( script:GetIndex() ) then
+	if type( script ) == "table" and TableHasValue( self:GetScripts() , script ) then
 		print("iscript")
-		table.remove( self:GetScripts() , script:GetIndex() )
+		table.remove( self:GetScripts() , TableHasValue( self:GetScripts() , script ) )
 
 		script:Remove()
 	end

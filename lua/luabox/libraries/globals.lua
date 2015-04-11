@@ -5,8 +5,6 @@ local netc = container:GetNetworker()
 CLIENT = CLIENT
 SERVER = SERVER
 
-RealTime = RealTime
-
 function print( ... )
     if SERVER then
         local input = {...}
@@ -76,18 +74,29 @@ netc:Receive( "func_printtab" , function()
 end)
 
 
-env:CallOnRemove( "Test_Removing" , function()
-    print("REMOVING")
-
-    error("teste error")
-
-end)
-
-
 Msg = print
 MsgN = print
 
-print("globals loaded",container,ply,SERVER)
+
+RealTime = RealTime
+CurTime = CurTime
 
 
-hook=hook
+table = luabox.CopyTable( table )
+string = luabox.CopyTable( string )
+math = luabox.CopyTable( math )
+
+
+
+
+
+
+
+
+
+env:CallOnRemove( "Test_Removing" , function()
+    print("REMOVING")
+
+
+
+end)

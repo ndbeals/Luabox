@@ -6,14 +6,16 @@ local EntLookup = {} --two way look up table, use the actual entity as the key t
 local EntityProxy = luabox.Class()
 local G_Entity = Entity
 
+local check = luabox.CanUse
 
---EntityProxy.EntIndex = 0
---EntityProxy.Class = "test"
+
+EntityProxy.EntIndex = 0
+EntityProxy.Class = "NULL"
 function EntityProxy:Initialize( ent )
     EntLookup[ ent ] = self
     EntLookup[ self ] = ent
 
-    if ent == NULL or not IsValid(ent) then return end
+    if not IsValid(ent) then return end
 
     self.EntIndex = ent:EntIndex()
     self.Class = ent:GetClass()
@@ -31,33 +33,53 @@ function EntityProxy:Test()
     print("hi there")
 end
 
+function EntityProxy:AlignAngles( ... )
+    return EntLookup[ self ]:AlignAngles( ... )
+end
+
+function EntityProxy:BoundingRadius()
+    return EntLookup[ self ]:BoundingRadius()
+end
+
+function EntityProxy:BoneLength( ... )
+    return EntLookup[ self ]:BoneLength( ... )
+end
+
+function EntityProxy:BoneHasFlag( ... )
+    return EntLookup[ self ]:BoneHasFlag( ... )
+end
+
+if SERVER then
+function EntityProxy:CreatedByMap()
+    return EntLookup[ self ]:CreatedByMap()
+end
+end
+
+function EntityProxy:
+    return EntLookup[ self ]
+
+
+
+
 function Entity( num )
     local ent = G_Entity( num )
-    --print("first",num,ent)
     if not ent or not IsValid( ent ) then return EntLookup[ ent ] end
-    --print("still")
+
     local p_ent = EntLookup[ ent ]
-
-    --print("still more",p_ent,EntLookup[ent])
-
-    --PrintTable(EntLookup)
 
     if not p_ent then
         p_ent = EntityProxy( ent )
-
-
-
-        --print("stiller",p_ent)
     end
-    --print("stilleed",ent,p_ent)
-    --print(ent,p_ent)
-    --print("stillest")
+
     return p_ent
 end
 
 local null_proxy = EntityProxy( NULL ) --there's always a NULL entity, so I i'm going to create one here, i may also have to edit this to make functions called on it error out.
-
 EntLookup[ NULL ] = null_proxy
 EntLookup[ null_proxy ] = NULL
+
+
+
+
 
 print("entity lib loaded")
