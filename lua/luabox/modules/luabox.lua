@@ -46,13 +46,6 @@ function PlayerContainer( player )
 	return ret
 end
 
---- Get Libraries.
--- Gets a copied list of all loaded Luabox libraries
---@return Libraries: A copy of the default library tables
-function GetLibraries()
-	return table.Copy(Libraries)
-end
-
 --- Copy Table.
 -- Copyies a table and returns the new copy
 function CopyTable( tab )
@@ -65,6 +58,24 @@ function CopyTable( tab )
 	return ret
 end
 
+--- Weak Table.
+-- Creates a new, weak table, returns it
+--@return table the weak table to use
+function WeakTable( mode )
+	local ret = {}
+	mode = mode or "kv"
+
+	setmetatable( ret , { __mode = mode } )
+
+	return ret
+end
+
+--- Get Libraries.
+-- Gets a copied list of all loaded Luabox libraries
+--@return Libraries: A copy of the default library tables
+function GetLibraries()
+	return table.Copy(Libraries)
+end
 --- Get Containers.
 -- Gets the direct list of containers that luabox currently has registered.
 -- Be careful with how you change data in this table, unintended results could occur
@@ -166,7 +177,7 @@ Library = Class()
 -- Holds basic function templates which are abstracted to work per player.
 --@param file file to load for the library
 function Library:Initialize( file )
-	print()
+	print( file)
 	self.Path = file
 	self.Name = string.StripExtension( string.GetFileFromFilename( file ) ) or tostring(self)
 
@@ -353,14 +364,32 @@ end
 -- Executes the script, each script should only be executed once.
 -- todo: better error handling.
 function Script:Execute()
-	local err = pcall( self.Function , OnScriptError )
+	local err , message = pcall( self.Function , OnScriptError )
 
 	if err then
 		return true
 	else
-		return false
+		print("Error:",message)
+
+		self:SetErrorMessage( message )
+		return false , message
 	end
 end
+
+--- Set ErrorMessage.
+-- Sets the ErrorMessage of the Script
+--@param ErrorMessage The ErrorMessage number to be set
+function Script:SetErrorMessage( errmsg )
+	self.ErrorMessage = errmsg
+end
+
+--- Get ErrorMessage.
+-- Gets the ErrorMessage of the Script, used by the container class as a means of keeping track of what's what.
+--@return ErrorMessage: The ErrorMessage number of the Script.
+function Script:GetErrorMessage()
+	return self.ErrorMessage
+end
+
 
 --- Set Name.
 -- Sets the Name of the Script, used by the container class as a means of keeping track of what's what.
@@ -951,14 +980,19 @@ function Container:AddFunctionsToEnvironment( env )
 
 	local meta = {
 		__index = _G,
-		__newindex = function(self,k,v)
-			environment[k] = v
-		end
+		--__newindex = function(self,k,v)
+		--	environment[k] = v
+		--end
 	}
+
+	--local envtemp =
+	setmetatable( environment , meta )
+
 	for Name , Library in pairs( self:GetLibraries() ) do
 
-		setfenv( Library:GetTemplate() , setmetatable( {} , meta ) ) ( self , self.Player , env ) --
+		setfenv( Library:GetTemplate() , environment ) ( self , self.Player , env ) --
 	end
+	setmetatable( environment , {} )
 end
 
 --- Select Environment.
@@ -1064,7 +1098,7 @@ function Container:RemoveScript( script )
 	script = self:SelectScript( script ) or script
 
 	if type( script ) == "table" and TableHasValue( self:GetScripts() , script ) then
-		print("iscript")
+		--print("iscript")
 		table.remove( self:GetScripts() , TableHasValue( self:GetScripts() , script ) )
 
 		script:Remove()

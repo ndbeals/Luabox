@@ -5,6 +5,7 @@ local netc = container:GetNetworker()
 CLIENT = CLIENT
 SERVER = SERVER
 
+local _print = print
 function print( ... )
     if SERVER then
         local input = {...}
@@ -19,11 +20,11 @@ function print( ... )
             netc:WriteString( str )
         netc:Send()
     else
-        print(...)
+        _print(...)
     end
 end
 netc:Receive( "func_print" , function()
-    print( netc:ReadString() )
+    _print( netc:ReadString() )
 end)
 
 local function printtab( t, indent, done )
@@ -59,6 +60,7 @@ local function printtab( t, indent, done )
     return send
 end
 
+local _PrintTable = PrintTable
 function PrintTable( t , indent , done )
     if SERVER then
         local send = printtab( t , indent , done )
@@ -66,7 +68,7 @@ function PrintTable( t , indent , done )
             netc:WriteString( send )
         netc:Send()
     else
-        PrintTable( t , indent , done )
+        _PrintTable( t , indent , done )
     end
 end
 netc:Receive( "func_printtab" , function()
@@ -81,6 +83,11 @@ MsgN = print
 RealTime = RealTime
 CurTime = CurTime
 
+tostring = tostring
+tonumber = tonumber
+
+IsValid = IsValid
+
 
 table = luabox.CopyTable( table )
 string = luabox.CopyTable( string )
@@ -88,14 +95,19 @@ math = luabox.CopyTable( math )
 
 
 
+getfenv = getfenv
+
+function testes()
+    print("why", debug)
+end
 
 
 
 
 
-
+print("Globals Loaded")
 env:CallOnRemove( "Test_Removing" , function()
-    print("REMOVING")
+    --print("REMOVING")
 
 
 

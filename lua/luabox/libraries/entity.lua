@@ -2,11 +2,12 @@
 local container , ply , env = ...
 local netc = container:GetNetworker()
 
-local EntLookup = {} --two way look up table, use the actual entity as the key to get the entity proxy class, or use the entity proxy class as the key and get the actual entity
-local EntityProxy = luabox.Class()
+local EntLookup = luabox.WeakTable()--{} --two way look up table, use the actual entity as the key to get the entity proxy class, or use the entity proxy class as the key and get the actual entity
+EntityProxy = luabox.Class()
 local G_Entity = Entity
 
 local check = luabox.CanUse
+--local IsValid = IsValid
 
 
 EntityProxy.EntIndex = 0
@@ -33,6 +34,15 @@ function EntityProxy:Test()
     print("hi there")
 end
 
+if SERVER then
+function EntityProxy:CreatedByMap()
+    return EntLookup[ self ]:CreatedByMap()
+end
+else
+
+
+end
+
 function EntityProxy:AlignAngles( ... )
     return EntLookup[ self ]:AlignAngles( ... )
 end
@@ -49,28 +59,414 @@ function EntityProxy:BoneHasFlag( ... )
     return EntLookup[ self ]:BoneHasFlag( ... )
 end
 
-if SERVER then
-function EntityProxy:CreatedByMap()
-    return EntLookup[ self ]:CreatedByMap()
+function EntityProxy:Entindex()
+    return EntLookup[ self ]:EndIndex()
 end
+
+function EntityProxy:EyeAngles()
+    return AngleProxy( EntLookup[ self ]:EyeAngles() )
+end
+
+function EntityProxy:EyePos()
+    return EntLookup[ self ]:EyePos()
+end
+
+function EntityProxy:FindBodygroupByName( ... )
+    return EntLookup[ self ]:FindBodygroupByName( ... )
+end
+
+function EntityProxy:FindTransitionSequence( ... )
+    return EntLookup[ self ]:FindTransitionSequence( ... )
+end
+
+function EntityProxy:FollowBone( ... )
+    return EntLookup[ self ]:FollowBone( ... )
+end
+
+function EntityProxy:GetAbsVelocity()
+    return VectorProxy( EntLookup[ self ]:GetAbsVelocity() )
+end
+
+function EntityProxy:GetAngles()
+    return AngleProxy( EntLookup[ self ]:GetAngles() )
+end
+
+function EntityProxy:GetAttachment( ... )
+    return EntLookup[ self ]:GetAttachment( ... )
+end
+
+function EntityProxy:GetAttachments()
+    return EntLookup[ self ]:GetAttachments()
+end
+
+function EntityProxy:GetClass()
+    return EntLookup[ self ]:GetClass()
+end
+
+function EntityProxy:GetCollisionBounds()
+    return EntLookup[ self ]:GetCollisionBounds()
+end
+
+function EntityProxy:GetCollisionGroup()
+    return EntLookup[ self ]:GetCollisionGroup()
+end
+
+function EntityProxy:GetColor()
+    return EntLookup[ self ]:GetColor()
+end
+--[[
+function EntityProxy:
+    return EntLookup[ self ]:
 end
 
 function EntityProxy:
-    return EntLookup[ self ]
+    return EntLookup[ self ]:
+end
 
+function EntityProxy:
+    return EntLookup[ self ]:
+end
 
+function EntityProxy:
+    return EntLookup[ self ]:
+end
 
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+
+function EntityProxy:
+    return EntLookup[ self ]:
+end
+--]]
 
 function Entity( num )
     local ent = G_Entity( num )
-    if not ent or not IsValid( ent ) then return EntLookup[ ent ] end
+    print("what?",IsValid(ent))
+    print("enitty",num,ent,EntLookup)
 
+    if not IsValid( ent ) then return EntLookup[ NULL ] end
+    print("what")
+    print("prereturning", ent )
     local p_ent = EntLookup[ ent ]
 
     if not p_ent then
         p_ent = EntityProxy( ent )
     end
 
+    print("returning", ent , p_ent)
     return p_ent
 end
 
