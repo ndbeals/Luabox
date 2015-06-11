@@ -1,0 +1,3 @@
+Foran - Making the chip model
+
+MANDRAC - Compiling it and editing textures.
