@@ -1,3 +1,13 @@
 Foran - Making the chip model
 
 MANDRAC - Compiling it and editing textures.
+
+Lua EDITOR:
+-- Andreas "Syranide" Svensson's editor for Wire Expression 2
+-- edited by DarKSunrise aka Assassini
+-- to work with Luapad and with Lua-syntax
+
+-- modified slightly by CapsAdmin to make it work as a mini lua editor in pac3
+-- source https://code.google.com/p/lua-pad/
+
+--modified slightly (yet again) by TGiFallen to make it work for Luabox

@@ -9,12 +9,15 @@ if SERVER then
 	AddCSLuaFile("luabox/sh_luabox.lua")
 
 	AddCSLuaFile("luabox/modules/luabox.lua")
+	AddCSLuaFile("luabox/ui/editor.lua")
 
 	include("luabox/sh_luabox.lua")
 	include("luabox/sv_luabox.lua")
 else
 	include("luabox/sh_luabox.lua")
 	include("luabox/cl_luabox.lua")
+
+	include("luabox/ui/editor.lua")
 end
 
 include("luabox/modules/luabox.lua")

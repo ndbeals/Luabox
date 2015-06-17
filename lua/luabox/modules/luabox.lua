@@ -755,7 +755,7 @@ function Networker:ReadTable()
 	return net.ReadTable()
 end
 
---- Start Message.
+--- Start.
 -- Wrapping around net.Start to control resource usage
 --@param name Name of the message to be sent
 function Networker:Start( name )
