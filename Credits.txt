@@ -1,6 +1,6 @@
 Foran - Making the chip model
 
-MANDRAC - Compiling it and editing textures.
+MANDRAC - Compiling the chip model and editing textures.
 
 Lua EDITOR:
 -- Andreas "Syranide" Svensson's editor for Wire Expression 2
@@ -11,3 +11,5 @@ Lua EDITOR:
 -- source https://code.google.com/p/lua-pad/
 
 --modified slightly (yet again) by TGiFallen to make it work for Luabox
+
+!Cake (notcake) for lots of UI code, coming from his addon gooey

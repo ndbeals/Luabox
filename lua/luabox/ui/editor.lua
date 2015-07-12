@@ -9,11 +9,11 @@
 
 local PANEL = {};
 
-PANEL.ClassName = "luabox"
+PANEL.ClassName = "Luabox_Editor"
 PANEL.Base = "Panel"
 
-surface.CreateFont("luaboxEditor", {font = "Courier New", size = 16, weight = 400 } );
-surface.CreateFont("luaboxEditor_Bold", {font = "Courier New", size = 16, weight = 800});
+surface.CreateFont("luaboxEditor" , { font = "Lucida Console" , size = 14 , weight = 400 } )
+surface.CreateFont("luaboxEditor_Bold" , { font = "Lucida Console" , size = 16 , weight = 800 })
 
 function PANEL:Init()
 	self:SetCursor("beam");
@@ -46,6 +46,10 @@ function PANEL:Init()
 	self.TextEntry.Parent = self;
 
 	self.LastClick = 0;
+	self.QueueIndent = 0
+	self.AutoIndents = {}
+	self.AutoUnIndents = {}
+	self.LastWord = ""
 end
 
 function PANEL:RequestFocus()
@@ -138,11 +142,7 @@ function PANEL:OnMousePressed(code)
 		end
 
 		menu:AddOption("Paste",  function()
-			if(self.clipboard) then
-				self:SetSelection(self.clipboard)
-			else
-				self:SetSelection()
-			end
+			self:Paste()
 		end)
 
 		if(self:HasSelection()) then
@@ -204,6 +204,14 @@ function PANEL:NextChar()
 	end
 end
 
+function PANEL:IndentOnEnter()
+	self.QueueIndent = self.QueueIndent + 1
+end
+
+function PANEL:UnIndentOnEnter()
+	self.QueueIndent = self.QueueIndent - 1
+end
+
 function PANEL:SyntaxColorLine(row)
 	local cols = {}
 	local lasttable;
@@ -213,7 +221,7 @@ function PANEL:SyntaxColorLine(row)
 	self.str = ""
 
 	-- TODO: Color customization?
-	colors = {
+	local colors = {
 		["none"] =  { Color(198,197,254, 255), false},
 		["number"] =    { Color(249,238,152, 255), false},
 		["function"] =  { Color(218,208,133, 255), false},
@@ -221,7 +229,7 @@ function PANEL:SyntaxColorLine(row)
 		["metatable"] =  { Color(140, 100, 90, 255), false},
 		["string"] =    { Color(120, 120, 120, 255), false},
 		["expression"] =    { Color(150,203,254, 255), false},
-		["operator"] =  { Color(100, 100, 100, 255), false},
+		["operator"] =  { Color(200, 200, 200, 255), false},--Color(100, 100, 100, 255), false},
 		["comment"] =   { Color(0, 120, 0, 255), false},
 	}
 
@@ -251,6 +259,12 @@ function PANEL:SyntaxColorLine(row)
 			or sstr == "do" or sstr == "while" or sstr == "break" or sstr == "for" or sstr == "in" or sstr == "local"
 			or sstr == "true" or sstr == "false" or sstr == "nil" or sstr == "NULL" or sstr == "and" or sstr == "not"
 			or sstr == "or" or sstr == "||" or sstr == "&&") then
+
+				if sstr == "then" or sstr == "do" then
+					--self:IndentOnEnter( row )
+				elseif sstr == "end" then
+					--self:UnIndentOnEnter( row )
+				end
 
 				token = "expression"
 
@@ -382,7 +396,7 @@ function PANEL:PaintLine(row)
 				offset = string.len(line)
 
 				if(cell[2][2]) then
-					draw.SimpleText(line, "luaboxEditorBold", width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
+					draw.SimpleText(line, "luaboxEditor_Bold", width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
 				else
 					draw.SimpleText(line, "luaboxEditor", width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
 				end
@@ -391,7 +405,7 @@ function PANEL:PaintLine(row)
 			end
 		else
 			if(cell[2][2]) then
-				draw.SimpleText(cell[1], "luaboxEditorBold", offset * width + width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
+				draw.SimpleText(cell[1], "luaboxEditor_Bold", offset * width + width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
 			else
 				draw.SimpleText(cell[1], "luaboxEditor", offset * width + width * 3 + 6, (row - self.Scroll[1]) * height, cell[2][1])
 			end
@@ -642,6 +656,19 @@ function PANEL:_OnTextChanged()
 	local text = self.TextEntry:GetValue()
 	self.TextEntry:SetText("")
 
+	if text == " " or text == "\n" then
+		self.LastWord = ""
+	else
+		self.LastWord = self.LastWord .. text
+	end
+
+	if self.LastWord == "then" or self.LastWord == "function" or self.LastWord == "{" then
+		self:IndentOnEnter()
+	elseif self.LastWord == "end" or self.LastWord == "}" then
+		self:UnIndentOnEnter()
+	end
+
+
 	if((input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)) and not (input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT))) then
 		-- ctrl+[shift+]key
 		if(input.IsKeyDown(KEY_V)) then
@@ -824,8 +851,28 @@ function PANEL:_OnKeyCodeTyped(code)
 		if(code == KEY_ENTER) then
 			local row = self.Rows[self.Caret[1]]:sub(1,self.Caret[2]-1)
 			local diff = (row:find("%S") or (row:len()+1))-1
+
+			if self.QueueIndent > 0 then
+				diff = diff + 4
+
+				self.TabFocus = true
+				self.QueueIndent = 0
+			elseif self.QueueIndent < 0 then
+				local newbuff = unindent( self:GetArea( {self.Caret, {self.Caret[1], 1}} ) )
+
+				self:SetArea( {self.Caret, {self.Caret[1], 1}} , newbuf)
+				self:SetSelection( newbuff )
+
+				diff = math.Max( diff - 4 , 0 )
+
+				self.TabFocus = true
+				self.QueueIndent = 0
+			end
+
 			local tabs = string.rep("    ", math.floor(diff / 4))
+
 			self:SetSelection("\n" .. tabs)
+
 		elseif(code == KEY_UP) then
 			if(self.Caret[1] > 1) then
 				self.Caret[1] = self.Caret[1] - 1
@@ -962,6 +1009,7 @@ function PANEL:_OnKeyCodeTyped(code)
 		if(self:HasSelection()) then
 			self:Indent(shift)
 		else
+
 			if(shift) then
 				local newpos = self.Caret[2]-4
 				if(newpos < 1) then newpos = 1 end
@@ -1034,6 +1082,10 @@ function PANEL:Indent(shift)
 	self:ScrollCaret()
 end
 
+function PANEL:Paste()
+	self.TextEntry:PostMessage ("DoPaste", "", "")
+end
+
 function PANEL:OnTextChanged()
 end
 
@@ -1043,4 +1095,4 @@ end
 function PANEL:CheckGlobal(func)
 end
 
-vgui.Register( "Luabox_editor", PANEL , PANEL.base )
+vgui.Register( PANEL.ClassName , PANEL , PANEL.base )
