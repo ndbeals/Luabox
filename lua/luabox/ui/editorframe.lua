@@ -154,7 +154,7 @@ function PANEL:SetupFileTreeButtons( pnl )
 
 	for i , v in ipairs( pnl.Directories ) do
 		v.DoClick = function( but )
-			print("folder" , but:GetText() )
+			print("folders" , but:GetText() )
 		end
 		self:SetupFileTreeButtons( v )
 	end
