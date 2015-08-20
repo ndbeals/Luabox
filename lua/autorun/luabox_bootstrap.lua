@@ -16,6 +16,8 @@ if SERVER then
 	AddCSLuaFile("luabox/ui/hscrollpanel.lua")
 	AddCSLuaFile("luabox/ui/consoleoutput.lua")
 	AddCSLuaFile("luabox/ui/splitter.lua")
+	AddCSLuaFile("luabox/ui/filetree_node.lua")
+	AddCSLuaFile("luabox/ui/toolmenu.lua")
 
 	include("luabox/sh_luabox.lua")
 	include("luabox/sv_luabox.lua")
@@ -30,6 +32,7 @@ else
 	include("luabox/ui/hscrollpanel.lua")
 	include("luabox/ui/consoleoutput.lua")
 	include("luabox/ui/splitter.lua")
+	include("luabox/ui/filetree_node.lua")
 end
 
 include("luabox/modules/luabox.lua")

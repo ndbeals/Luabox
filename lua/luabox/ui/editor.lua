@@ -15,6 +15,25 @@ PANEL.Base = "Panel"
 surface.CreateFont("luaboxEditor" , { font = "Lucida Console" , size = 14 , weight = 400 } )
 surface.CreateFont("luaboxEditor_Bold" , { font = "Lucida Console" , size = 16 , weight = 800 })
 
+local lookat = {
+	_G,
+	FindMetaTable("Entity"),
+	FindMetaTable("Vector"),
+	FindMetaTable("Angle"),
+	FindMetaTable("Player"),
+	FindMetaTable("PhysObj"),
+	FindMetaTable("Weapon"),
+}
+
+local function lookupfunc( tbl , key )
+	for _ , tab in ipairs( lookat ) do
+		if tab[ key ] then
+			return tab[ key ]
+		end
+	end
+
+end
+
 function PANEL:Init()
 	self:SetCursor("beam");
 
@@ -50,6 +69,8 @@ function PANEL:Init()
 	self.AutoIndents = {}
 	self.AutoUnIndents = {}
 	self.LastWord = ""
+
+	self.DefinedHighlights = setmetatable( {} , lookup )
 end
 
 function PANEL:RequestFocus()
@@ -212,15 +233,33 @@ function PANEL:UnIndentOnEnter()
 	self.QueueIndent = self.QueueIndent - 1
 end
 
+local lasttoken
+local lastword = ""
+local colors = {
+	["none"] =  { Color(197, 200, 198,255), false},
+	["number"] =    { Color(255, 115, 253, 255), false},
+	["function"] =  { Color(218,208,133, 255), false},
+	["functiondef"] =  { Color(255, 210, 167, 255), false},
+	["string"] =    { Color(168, 255, 96, 255), false},
+	["expression"] =    { Color(150,203,254, 255), false},
+	["operator"] =  { Color(237, 237, 237, 255), false},--Color(100, 100, 100, 255), false},
+	["comment"] =   { Color(124, 124, 124 , 255), false},
+	["variable"] = 	{ Color(198,197,254, 255), false},
+}
+
 function PANEL:SyntaxColorLine(row)
 	local cols = {}
 	local lasttable;
+	local nexttoken
+	local prevtoken
+	local token
 	self.line = self.Rows[row]
 	self.pos = 0
 	self.char = ""
 	self.str = ""
 
 	-- TODO: Color customization?
+	--[[
 	local colors = {
 		["none"] =  { Color(198,197,254, 255), false},
 		["number"] =    { Color(249,238,152, 255), false},
@@ -232,16 +271,35 @@ function PANEL:SyntaxColorLine(row)
 		["operator"] =  { Color(200, 200, 200, 255), false},--Color(100, 100, 100, 255), false},
 		["comment"] =   { Color(0, 120, 0, 255), false},
 	}
+	--]]
 
 	colors["string2"] = colors["string"];
 
 	self:NextChar();
-
+	--print("--------------------------------------------------------------------------startf")
 	while self.char do
-		token = "";
+
 		self.str = "";
 
-		while self.char and self.char == " " do self:NextChar() end
+		while self.char and self.char == " " do self:NextChar()
+			if lasttoken == "function" then
+				nexttoken = "functiondef"
+			elseif lasttoken == "vardef" then
+				nexttoken = "variable"
+			end
+
+			if lasttoken == "functiondef" then
+				self.DefinedHighlights[ lastword ] = "f"
+				lasttoken = ""
+				--print("whendo")
+			elseif lasttoken == "variable" then
+				self.DefinedHighlights[ lastword ] = "v"
+				lasttoken = ""
+			end
+		end
+
+		token = "";
+
 		if(!self.char) then break end
 
 		if(self.char >= "0" and self.char <= "9") then
@@ -255,41 +313,69 @@ function PANEL:SyntaxColorLine(row)
 
 			local sstr = string.Trim(self.str)
 
+
 			if(sstr == "if" or sstr == "elseif" or sstr == "else" or sstr == "then" or sstr == "end" or sstr == "function"
 			or sstr == "do" or sstr == "while" or sstr == "break" or sstr == "for" or sstr == "in" or sstr == "local"
 			or sstr == "true" or sstr == "false" or sstr == "nil" or sstr == "NULL" or sstr == "and" or sstr == "not"
-			or sstr == "or" or sstr == "||" or sstr == "&&") then
-
-				if sstr == "then" or sstr == "do" then
-					--self:IndentOnEnter( row )
-				elseif sstr == "end" then
-					--self:UnIndentOnEnter( row )
-				end
+			or sstr == "or" or sstr == "||" or sstr == "&&" or sstr == "return") then
 
 				token = "expression"
 
-			elseif(self:CheckGlobal(sstr) && (type(self:CheckGlobal(sstr)) == "function" or self:CheckGlobal(sstr) == "f"
-			or self:CheckGlobal(sstr) == "e" or self:CheckGlobal(sstr) == "m" or type(self:CheckGlobal(sstr)) == "table")
-			or (lasttable && lasttable[sstr])) then -- Could be better code, but what the hell; it works
-
-				if(type(self:CheckGlobal(sstr)) == "table") then
-					lasttable = self:CheckGlobal(sstr);
+				if sstr == "function" then
+					lasttoken = "function"
+				elseif sstr == "local" then
+					lasttoken = "vardef"
 				end
 
-				if(self:CheckGlobal(sstr) == "e") then
-					token = "enumeration";
-				elseif(self:CheckGlobal(sstr) == "m") then
-					token = "metatable";
-				else
-					token = "function";
-				end
+			elseif self:CheckHighlight(sstr) == "f" then
+
+				token = "function"
+
+			elseif self:CheckHighlight( sstr ) == "v" then
+
+				token = "variable"
 
 			else
 
 				lasttable = nil;
 				token = "none"
 
+				local explo = string.Explode( "[%s,]+" , self.line , true )
+				for _ , str in ipairs(explo) do
+					if str == sstr then
+						for i = _ , #explo do
+							local str2 = explo[i]
+
+							if str2 == "=" then
+								token = "variable"
+								self.DefinedHighlights[ sstr ] = "v"
+							end
+						end
+					end
+				end
 			end
+
+			if nexttoken == "functiondef" then
+				token = "functiondef"
+				nexttoken = ""
+				lasttoken = "functiondef"
+
+				lastword = sstr
+				--print("lastword",lastword)
+			elseif nexttoken == "variable" then
+				token = "variable"
+				nexttoken = ""
+				lasttoken = "variable"
+				lastword = sstr
+
+				if sstr == "function" then
+					token = "expression"
+					nexttoken = "functiondef"
+				end
+
+				--print("lastwordvar",lastword , token)
+			end
+			lastword = sstr
 		elseif(self.char == "\"") then -- TODO: Fix multiline strings, and add support for [[stuff]]!
 
 			self:NextChar()
@@ -326,12 +412,18 @@ function PANEL:SyntaxColorLine(row)
 			end
 
 		else
-
 			self:NextChar()
 
 			token = "operator"
-
 		end
+
+
+		if self:CheckHighlight( string.Trim(self.str) ) == "f" then
+			token = "function"
+		elseif self:CheckHighlight( string.Trim(self.str) ) == "v" then
+			token = "variable"
+		end
+		--print("final token" , token , string.Trim(self.str) , self.DefinedHighlights["ge"])
 
 		color = colors[token]
 		if(#cols > 1 and color == cols[#cols][2]) then
@@ -340,8 +432,20 @@ function PANEL:SyntaxColorLine(row)
 			cols[#cols + 1] = {self.str, color}
 		end
 	end
+	--print("--------------------------------------------------------------------------endf\n\n")
+
 
 	return cols;
+end
+
+function PANEL:CheckHighlight( str )
+	if self.DefinedHighlights[ str ] == "f" or type(self.DefinedHighlights[ str]) == "function" then
+		return "f"
+	elseif (self.DefinedHighlights[ str ] == "v" or type(self.DefinedHighlights[ str]) != "function") and self.DefinedHighlights[ str ] then
+		return "v"
+	end
+
+	return
 end
 
 function PANEL:PaintLine(row)
@@ -450,10 +554,14 @@ function PANEL:Paint()
 	surface.SetDrawColor(20, 20, 20, 255)
 	surface.DrawRect(0, 0, self.FontWidth * 3 + 4, self:GetTall())
 
-	surface.SetDrawColor(23, 23, 23, 255)
+	--surface.SetDrawColor(23, 23, 23, 255)
+	surface.SetDrawColor( 29, 31, 33 , 255)
 	surface.DrawRect(self.FontWidth * 3 + 5, 0, self:GetWide() - (self.FontWidth * 3 + 5), self:GetTall())
 
 	self.Scroll[1] = math.floor(self.ScrollBar:GetScroll() + 1)
+
+	PrintTable(self.DefinedHighlights)
+	self.DefinedHighlights = setmetatable( {} , {__index = lookupfunc } )
 
 	for i=self.Scroll[1],self.Scroll[1]+self.Size[1]+1 do
 		self:PaintLine(i)
@@ -772,11 +880,14 @@ function PANEL:_OnKeyCodeTyped(code)
 	self.Blink = RealTime()
 
 	local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
-
 	local shift = input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT)
 	local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
 
-	if(alt) then return end
+	if alt then return end
+
+	--if(alt or control or shift) then
+		self:OnShortcut(code)
+	--end
 
 	if(control) then
 		if(code == KEY_A) then
@@ -983,11 +1094,13 @@ function PANEL:_OnKeyCodeTyped(code)
 				self:SetSelection()
 			else
 				local buffer = self:GetArea({self.Caret, {self.Caret[1], 1}})
+
 				if(self.Caret[2] % 4 == 1 and string.len(buffer) > 0 and string.rep(" ", string.len(buffer)) == buffer) then
 					self:SetCaret(self:SetArea({self.Caret, self:MovePosition(self.Caret, -4)}))
 				else
 					self:SetCaret(self:SetArea({self.Caret, self:MovePosition(self.Caret, -1)}))
 				end
+
 			end
 		elseif(code == KEY_DELETE) then
 			if(self:HasSelection()) then
@@ -1025,10 +1138,6 @@ function PANEL:_OnKeyCodeTyped(code)
 			end
 		end
 		self.TabFocus = true
-	end
-
-	if(control) then
-		self:OnShortcut(code)
 	end
 end
 
@@ -1089,10 +1198,10 @@ end
 function PANEL:OnTextChanged()
 end
 
-function PANEL:OnShortcut()
-end
-
-function PANEL:CheckGlobal(func)
+function PANEL:OnShortcut( code )
+	if self:GetParent().OnKeyCodePressed then
+	    self:GetParent():OnKeyCodePressed( code )
+	end
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.base )

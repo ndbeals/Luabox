@@ -88,26 +88,35 @@ function PANEL:Think()
         y = math.Clamp( y, self.MinY , self.MaxY )
 
         if self:GetOrientation() == 1  then
+
             local diff = x - self.x
 
-            if self.Panel1 then
+            if self.Panel1 and diff != 0 then
                 self.Panel1:SetWide( self.Panel1:GetWide() + diff )
+                self.Panel1:InvalidateParent( true )
+                self.Panel1:InvalidateChildren( true )
             end
-            if self.Panel2 then
+            if self.Panel2 and diff != 0 then
                 self.Panel2:SetWide( self.Panel2:GetWide() - diff )
                 self.Panel2.x = self.Panel2.x + diff
+                self.Panel2:InvalidateParent( true )
+                self.Panel2:InvalidateChildren( true )
             end
 
             self.x = x
         else
             local diff = y - self.y
 
-            if self.Panel1 then
+            if self.Panel1 and diff != 0 then
                 self.Panel1:SetTall( self.Panel1:GetTall() + diff )
+                self.Panel1:InvalidateParent( true )
+                self.Panel1:InvalidateChildren( true )
             end
-            if self.Panel2 then
+            if self.Panel2 and diff != 0 then
                 self.Panel2:SetTall( self.Panel2:GetTall() - diff )
                 self.Panel2.y = self.Panel2.y + diff
+                self.Panel2:InvalidateParent( true )
+                self.Panel2:InvalidateChildren( true )
             end
 
             self.y = y
@@ -211,6 +220,12 @@ function PANEL:OnMouseReleased( mousecode )
 	self.Depressed = nil
     --]]
 
+end
+
+function PANEL:OnKeyCodePressed( code )
+    if self:GetParent().OnKeyCodePressed then
+        self:GetParent():OnKeyCodePressed( code )
+    end
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )

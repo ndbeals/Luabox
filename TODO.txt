@@ -1,0 +1,2 @@
+UI
+    - Add support for coloured prints (MsgC, etc) in the consoleoutput element

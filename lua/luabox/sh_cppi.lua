@@ -49,7 +49,7 @@ if CPPI then --check cppi if it exists
     end
 
     --- Can Use.
-    -- Checks if a player can use an enitity
+    -- Checks if a player can use an entity
     --@param player player entity to check if it can use the entity
     --@param entity entity to check if player can manipulate
     --@return boolean Can Manipulate

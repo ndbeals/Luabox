@@ -296,4 +296,10 @@ function PANEL:PerformLayout()
 
 end
 
+function PANEL:OnKeyCodePressed( code )
+    if self:GetParent().OnKeyCodePressed then
+        self:GetParent():OnKeyCodePressed( code )
+    end
+end
+
 vgui.Register( PANEL.ClassName , PANEL, PANEL.Base )

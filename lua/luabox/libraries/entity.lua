@@ -470,7 +470,7 @@ function Entity( num )
     return p_ent
 end
 
-local null_proxy = EntityProxy( NULL ) --there's always a NULL entity, so I i'm going to create one here, i may also have to edit this to make functions called on it error out.
+local null_proxy = EntityProxy( NULL ) --there's always a NULL entity, so I'm going to create one here, i may also have to edit this to make functions called on it error out.
 EntLookup[ NULL ] = null_proxy
 EntLookup[ null_proxy ] = NULL
 

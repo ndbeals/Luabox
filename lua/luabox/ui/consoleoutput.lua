@@ -7,16 +7,62 @@ function PANEL:Init()
     self:SetMouseInputEnabled( true )
     self:SetMultiline( true )
 
-
+	self.Rows = {}
+	self.RowColors = {}
 
     --self:SetCursorColor( Color( 0 , 0 , 0 , 0 ) )
 end
 
-function PANEL:aPaint( w , h )
-    --draw.RoundedBox( 8 , 0 , 0 , w , h , Color( 255,0,0) )
-    surface.DrawRect( 0 , 0 , w , h )
+function PANEL:CursorToCaret()
+	local x, y = self:CursorPos();
 
-    self:DrawTextEntryText( self.m_colText, self.m_colHighlight, self.m_colCursor )
+	--x = x - (self.FontWidth * 3 + 6);
+	x = x - self.FontWidth
+	if(x < 0) then x = 0; end
+	if(y < 0) then y = 0; end
+
+	local line = math.floor(y / self.FontHeight);
+	local char = math.floor(x / self.FontWidth + 0.5);
+
+	line = line + self.Scroll[1];
+	char = char + self.Scroll[2];
+
+	if(line > #self.Rows) then line = #self.Rows; end
+	local length = string.len(self.Rows[line]);
+	if(char > length + 1) then char = length + 1; end
+
+	return { line, char };
+end
+
+function PANEL:SyntaxColorLine(row)
+	return self.RowColors[ row ]
+end
+
+function PANEL:AddRow( ... )
+	local args = {...}
+	local rowcols = {}
+	local text = ""
+
+	for i , v in ipairs( args ) do
+		if type(v) == "string" then
+			text = text .. v
+			if type( args[ i + 1 ] ) == "string" then
+				table.insert( rowcols , { v , {Color(197, 200, 198,255),false}} )
+			end
+
+		elseif type(v) == "table" and v.r >= 0 then
+			table.insert( rowcols , { args[ i - 1 ] , {v,false}})
+
+		end
+	end
+
+	if #args == 1 then
+		table.insert( rowcols , {args[1] , {Color(197, 200, 198,255) , false }})
+	end
+
+	local row = table.insert( self.Rows , text )
+
+	self.RowColors[ row ] = rowcols
 end
 
 function PANEL:PaintLine(row)
@@ -138,47 +184,199 @@ function PANEL:Paint()
 
 	return true
 end
-
+---[[
 function PANEL:_OnTextChanged()
 	local ctrlv = false
 	local text = self.TextEntry:GetValue()
 	self.TextEntry:SetText("")
-
-	if text == " " or text == "\n" then
-		self.LastWord = ""
-	else
-		self.LastWord = self.LastWord .. text
-	end
-
-	if self.LastWord == "then" or self.LastWord == "function" or self.LastWord == "{" then
-		self:IndentOnEnter()
-	elseif self.LastWord == "end" or self.LastWord == "}" then
-		self:UnIndentOnEnter()
-	end
-
-
-	if((input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)) and not (input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT))) then
-		-- ctrl+[shift+]key
-		if(input.IsKeyDown(KEY_V)) then
-			-- ctrl+[shift+]V
-			ctrlv = true
-		else
-			-- ctrl+[shift+]key with key ~= V
-			return
-		end
-	end
-
-	if(text == "") then return end
-	if(not ctrlv) then
-		if(text == "\n") then return end
-		if(text == "end") then
-			local row = self.Rows[self.Caret[1]]
-		end
-	end
-
-	--self:SetSelection(text)
 end
+function PANEL:_OnKeyCodeTyped(code)
+	self.Blink = RealTime()
 
+	local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
+	local shift = input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT)
+	local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
+
+	if alt then return end
+
+	--if(alt or control or shift) then
+		self:OnShortcut(code)
+	--end
+
+	if(control) then
+		if(code == KEY_A) then
+			self:SelectAll()
+		elseif(code == KEY_X) then
+			if(self:HasSelection()) then
+				self.clipboard = self:GetSelection()
+				self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
+				SetClipboardText(self.clipboard)
+				self:SetSelection()
+			end
+		elseif(code == KEY_C) then
+			if(self:HasSelection()) then
+				self.clipboard = self:GetSelection()
+				self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
+				SetClipboardText(self.clipboard)
+			end
+		elseif(code == KEY_UP) then
+			self.Scroll[1] = self.Scroll[1] - 1
+			if(self.Scroll[1] < 1) then self.Scroll[1] = 1 end
+		elseif(code == KEY_DOWN) then
+			self.Scroll[1] = self.Scroll[1] + 1
+		elseif(code == KEY_LEFT) then
+			if(self:HasSelection() and !shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			else
+				self.Caret = self:getWordStart(self:MovePosition(self.Caret, -2))
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_RIGHT) then
+			if(self:HasSelection() and !shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			else
+				self.Caret = self:getWordEnd(self:MovePosition(self.Caret, 1))
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_HOME) then
+			self.Caret[1] = 1
+			self.Caret[2] = 1
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_END) then
+			self.Caret[1] = #self.Rows
+			self.Caret[2] = 1
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		end
+
+	else
+		if(code == KEY_UP) then
+			if(self.Caret[1] > 1) then
+				self.Caret[1] = self.Caret[1] - 1
+
+				local length = string.len(self.Rows[self.Caret[1]])
+				if(self.Caret[2] > length + 1) then
+					self.Caret[2] = length + 1
+				end
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_DOWN) then
+			if(self.Caret[1] < #self.Rows) then
+				self.Caret[1] = self.Caret[1] + 1
+
+				local length = string.len(self.Rows[self.Caret[1]])
+				if(self.Caret[2] > length + 1) then
+					self.Caret[2] = length + 1
+				end
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_LEFT) then
+			if(self:HasSelection() and !shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			else
+				self.Caret = self:MovePosition(self.Caret, -1)
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_RIGHT) then
+			if(self:HasSelection() and !shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			else
+				self.Caret = self:MovePosition(self.Caret, 1)
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_PAGEUP) then
+			self.Caret[1] = self.Caret[1] - math.ceil(self.Size[1] / 2)
+			self.Scroll[1] = self.Scroll[1] - math.ceil(self.Size[1] / 2)
+			if(self.Caret[1] < 1) then self.Caret[1] = 1 end
+
+			local length = string.len(self.Rows[self.Caret[1]])
+			if(self.Caret[2] > length + 1) then self.Caret[2] = length + 1 end
+			if(self.Scroll[1] < 1) then self.Scroll[1] = 1 end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_PAGEDOWN) then
+			self.Caret[1] = self.Caret[1] + math.ceil(self.Size[1] / 2)
+			self.Scroll[1] = self.Scroll[1] + math.ceil(self.Size[1] / 2)
+			if(self.Caret[1] > #self.Rows) then self.Caret[1] = #self.Rows end
+			if(self.Caret[1] == #self.Rows) then self.Caret[2] = 1 end
+
+			local length = string.len(self.Rows[self.Caret[1]])
+			if(self.Caret[2] > length + 1) then self.Caret[2] = length + 1 end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_HOME) then
+			local row = self.Rows[self.Caret[1]]
+			local first_char = row:find("%S") or row:len()+1
+			if(self.Caret[2] == first_char) then
+				self.Caret[2] = 1
+			else
+				self.Caret[2] = first_char
+			end
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		elseif(code == KEY_END) then
+			local length = string.len(self.Rows[self.Caret[1]])
+			self.Caret[2] = length + 1
+
+			self:ScrollCaret()
+
+			if(!shift) then
+				self.Start = self:CopyPosition(self.Caret)
+			end
+		end
+	end
+end
 
 function PANEL:OnDepressed()
 	self.Pressed = true
@@ -196,6 +394,12 @@ end
 
 function PANEL:PerformLayout()
 	self.BaseClass.PerformLayout( self )
+end
+
+function PANEL:OnShortcut( code )
+	if self:GetParent().OnKeyCodePressed then
+	    self:GetParent():OnKeyCodePressed( code )
+	end
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )

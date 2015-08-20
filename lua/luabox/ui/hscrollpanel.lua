@@ -25,6 +25,13 @@ function PANEL:Init()
 	end
     --]]
 
+	self.pnlCanvas.aPaint = function( pnl , w , h 	)
+		render.SetScissorRect( 0 , 0 , w / 2 , h / 2 , true )
+			derma.SkinHook( "Paint", "Tree", self, w, h )
+		render.SetScissorRect( 0 , 0 , 0 , 0 , false )
+		return true
+	end
+
 	-- Create the scroll bar
     self.HBar = vgui.Create( "Luabox_HScroll_Bar" , self )
     self.HBar:Dock( BOTTOM )
@@ -139,10 +146,14 @@ local function recursechildren( tab , width , height )
 		end
         width = width + mw
 	end
+
+	width = width
+
 	return width , height
 end
 
 function PANEL:SizeCanvasToContents()
+	
     if self.RootNode.ChildNodes then
         self:GetCanvas():SetSize( recursechildren( self.RootNode.ChildNodes:GetChildren() , 36 , 51 ) )
     end
@@ -228,5 +239,10 @@ function PANEL:Clear()
 
 end
 
+function PANEL:OnKeyCodePressed( code )
+    if self:GetParent().OnKeyCodePressed then
+        self:GetParent():OnKeyCodePressed( code )
+    end
+end
 
 vgui.Register( "Luabox_Scroll_Panel", PANEL, "DPanel" )

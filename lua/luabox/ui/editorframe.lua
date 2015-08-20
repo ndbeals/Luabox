@@ -128,6 +128,36 @@ function PANEL:SetupFileTree()
     self.ProjectTree:SetWide( math.max( self:GetWide() / 8 , 100 ) )
     self.ProjectTree:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing /2 )
     self.ProjectTree:Dock(LEFT)
+
+	self.Container:GetFileSystem():Refresh( true )
+	self.ProjectTree:SetFileSystem( self.Container:GetFileSystem() )
+
+	self:SetupFileTreeButtons()
+end
+
+function PANEL:RefreshFileTree( pnl )
+	pnl = pnl or self.ProjectTree
+
+	pnl:Refresh()
+
+	self:SetupFileTreeButtons( pnl )
+end
+
+function PANEL:SetupFileTreeButtons( pnl )
+	pnl = pnl or self.ProjectTree
+
+	for i , v in ipairs( pnl.Files ) do
+		v.DoClick = function( but )
+			print("file",but:GetText() )
+		end
+	end
+
+	for i , v in ipairs( pnl.Directories ) do
+		v.DoClick = function( but )
+			print("folder" , but:GetText() )
+		end
+		self:SetupFileTreeButtons( v )
+	end
 end
 
 function PANEL:SetupEditorSheet()
@@ -136,6 +166,13 @@ function PANEL:SetupEditorSheet()
     self.EditorSheet:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing / 2 )
     self.EditorSheet:Dock(FILL)
     self.EditorSheet:SetFadeTime(0)
+
+	self.EditorSheet.OnKeyCodePressed = function( self , code )
+	    if self:GetParent().OnKeyCodePressed then
+	        self:GetParent():OnKeyCodePressed( code )
+	    end
+	end
+
 
     self.EditorSheet.tabScroller:SetOverlap( 2 )
 
@@ -186,6 +223,11 @@ function PANEL:SetupAreas()
     self.EditorArea:SetPaintBackground( false )
     self.EditorArea:DockMargin( 0 , 0 , 0 , 0 )
     self.EditorArea:Dock(FILL)
+	self.EditorArea.OnKeyCodePressed = function( self , code )
+	    if self:GetParent().OnKeyCodePressed then
+	        self:GetParent():OnKeyCodePressed( code )
+	    end
+	end
 
     self.OutputArea = vgui.Create( "DPanel" , self.EditorArea )
     self.OutputArea:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing / 2 )
@@ -195,6 +237,12 @@ function PANEL:SetupAreas()
     self.OutputArea.Paint = function( pnl , w , h )
         derma.SkinHook( "Paint" , "PropertySheet" , pnl , w , h )
     end
+
+	self.OutputArea.OnKeyCodePressed = function( self , code )
+	    if self:GetParent().OnKeyCodePressed then
+	        self:GetParent():OnKeyCodePressed( code )
+	    end
+	end
 
     self.EditorSplitter = vgui.Create( "Luabox_Splitter" , self.EditorArea )
     self.EditorSplitter:DockMargin( spacing / 2 , -spacing / 4 , spacing / 2 , -spacing / 4 )
@@ -217,19 +265,11 @@ function PANEL:SetupConsoleOutput()
     self.ConsoleOutput:DockMargin( spacing , spacing , spacing , spacing )
     self.ConsoleOutput:Dock(FILL)
 
-    --self.ConsoleOutput
-    --self.ConsoleOutput:SetSelection("test\ngfdg\nsdg")
-    --self.ConsoleOutput:SetSelection("ararar")
-    --self.ConsoleOutput.Scroll[2] = 1
-    --self.ConsoleOutput:SetText("gagsfdgfssdfgghjkghjkghjkghjkghjkghjkghjkghjkghjkghjkghjkghjkcfgndtyumrtyufgyjghmitfyi dfghjcvgchkghjkghkbkhjsdfhdghfgjfghjkghjhfjklxfhglsernitulsovhldfigusvlgusdfilhxdfkvhudiofghseoriugeufuhsdovbsdfoivnseipurogberubsfidvsdouhkghjkghjkhghdfghdfghjkghjkooooooooooooooook")
-    self.ConsoleOutput.Rows[1] = "hello"
-    self.ConsoleOutput.Rows[2] = "World"
-    --self.ConsoleOutput:SetText("gag2")
-    --PrintTable(self.ConsoleOutput.Rows)
+	self.ConsoleOutput:AddRow( "function test() end" , Color(255,0,0) , "heru," ,"test2", "blacklin" , Color(0,255,0) )
 end
 
 function PANEL:AddEditorTab( name , icon )
-    name = name or "new"..#self.Editors
+    name = name or "new"..#self.Editors + 1
     icon = icon or "icon16/page.png"
 
     local editor = vgui.Create( "Luabox_Editor" , self )
@@ -237,6 +277,7 @@ function PANEL:AddEditorTab( name , icon )
     local sheet = self.EditorSheet:AddSheet( name , editor , icon , false , false , name )
 
     local tab = sheet.Tab
+	tab.Sheet = sheet
     tab.oldsize = tab.GetContentSize
 
     function tab.GetContentSize( tab )
@@ -271,21 +312,63 @@ function PANEL:AddEditorTab( name , icon )
 end
 
 function PANEL:RemoveEditorTab()
+	local tab = self.EditorSheet:GetActiveTab()
+	local key = table.RemoveByValue( self.Editors , tab.Sheet )
 
+	--print(key)
+
+	if #self.EditorSheet.Items == 1 then
+		self.EditorSheet:SetActiveTab(nil)
+	elseif key > 1 then
+		self.EditorSheet:SetActiveTab( self.Editors[key - 1].Tab )
+	else
+		self.EditorSheet:SetActiveTab( self.Editors[key].Tab )
+	end
+
+
+
+
+
+	--PrintTable(self.Editors[key])
+	--print(key)
+	--PrintTable(self.Editors)
+
+
+	self.EditorSheet:CloseTab( tab , true )
 end
 
 
 function PANEL:Init()
-    local SW , SH = ScrW() , ScrH()
+	local SW , SH = ScrW() , ScrH()
     self:SetSize( SW / 1.1 , SH / 1.125 )
     self:SetMinWidth( 200 )
     self:SetMinHeight( 100 )
+	self:SetTitle( "Luabox Editor" )
+
+	self.btnMaxim:SetDisabled( false )
+	self.btnMaxim.DoClick = function( btn )
+		if not self.Maximized then
+			self.Maximized = {self:GetSize()}
+			self:SetSize( ScrW() , ScrH() )
+		else
+			self:SetSize( unpack( self.Maximized ) )
+			self.Maximized = nil
+		end
+	end
 
     self.Editors = {}
+	self.Container = luabox.PlayerContainer()
+	self.HotKeyTime = FrameNumber()
 
     self.Menu = vgui.Create( "DMenuBar" , self )
     self.Menus = self.Menu.Menus
     self.Menu:Dock(NODOCK)
+	self.Menu.OnKeyCodePressed = function( self , code )
+	    if self:GetParent().OnKeyCodePressed then
+	        self:GetParent():OnKeyCodePressed( code )
+	    end
+	end
+
     self:DockPadding( spacing / 2 , (spacing / 2) + 23 + self.Menu:GetTall() , spacing / 2 , spacing / 2 )
 
     self:SetupFileTree()
@@ -306,46 +389,6 @@ function PANEL:Init()
 
     self:SetupConsoleOutput()
 
-
-
-    --self:AddEditorTab("googoocaakaapoopooothreeletterwordsarenothatlong")
-
-    --self:AddEditorTab()
-
-    --self.ProjectTree:Root():AddNode("test1"):AddNode("test2"):AddNode("test3")
-
-    local node = self.ProjectTree:Root()
-    node:AddNode("test")
-    for i = 1 , 30 do
-        --self.ProjectTree:Root():AddNode("blah"..i)
-        node = node:AddNode("test"..i)
-        node:AddNode("Space")
-        node:AddNode("Space")
-
-        --self.ProjectTree.pnlCanvas:PerformLayout()
-        --self.ProjectTree:InvalidateLayout()
-    end
-
---[[
-
-    self.ProjectTree:Root():AddFolder("Test" , "luapad" , "DATA" , true ):AddFolder("Test1" , "luapad" , "DATA" , true ):AddFolder("Test2" , "luapad" , "DATA" , true ):AddFolder("Test3" , "luapad" , "DATA" , true ):AddFolder("Test4" , "luapad" , "DATA" , true ):AddFolder("Test5" , "luapad" , "DATA" , true ):AddFolder("Test6" , "luapad" , "DATA" , true ):AddFolder("Test7" , "luapad" , "DATA" , true ):AddFolder("Test8" , "luapad" , "DATA" , true ):AddFolder("Test9" , "luapad" , "DATA" , true ):AddFolder("Test10" , "luapad" , "DATA" , true )
-    self.ProjectTree:Root():AddFolder("Test" , "luapad" , "DATA" , true )
-    self.ProjectTree:Root():AddFolder("Test" , "luapad" , "DATA" , true )
-    self.ProjectTree:Root():AddFolder("Test" , "luapad" , "DATA" , true )
-
-    --self.ProjectTree:PerformLayout()
-
-
-	--local test = vgui.Create("DPanel",self)
-
-	--self.Editor = vgui.Create( "Luabox_Editor" , self )
-	--self.Editor:SetSize(900,600)
-
-
-
-
---]]
-
 end
 
 
@@ -356,7 +399,6 @@ function PANEL:PerformLayout( w , h )
     self.Menu:SetWide( self:GetWide() - 2 )
 
     if self.ProjectTree:GetWide() > ( w - 100 ) then
-        print("wafa")
         self.ProjectTree:SetWide( math.Max( w - 100 , 100 ) )
     end
 
@@ -365,7 +407,50 @@ function PANEL:PerformLayout( w , h )
     self.EditorSplitter:SetupBounds( self.EditorSheet.y + 50 , self.OutputArea.y + self.OutputArea:GetTall() - self.EditorSplitter:GetTall() - 28 )
     self.FileSplitter:SetupBounds( self.ProjectTree.x + 100, self.EditorArea.x + self.EditorArea:GetWide() - self.FileSplitter:GetWide() - 100 )
 
-    --print("wgds",w,h)
+end
+
+function PANEL:OnKeyCodePressed( code , pnl )
+	if self.HotKeyTime == FrameNumber() then return end
+	self.HotKeyTime = FrameNumber()
+
+	local alt = input.IsKeyDown(KEY_LALT) or input.IsKeyDown(KEY_RALT)
+	local shift = input.IsKeyDown(KEY_LSHIFT) or input.IsKeyDown(KEY_RSHIFT)
+	local control = input.IsKeyDown(KEY_LCONTROL) or input.IsKeyDown(KEY_RCONTROL)
+
+	local hover = vgui.GetHoveredPanel()
+
+	if control then
+		if code == KEY_N then
+			self:AddEditorTab()
+		end
+
+		if code == KEY_W then
+			self:RemoveEditorTab()
+		end
+	end
+
+	if ( self.ProjectTree:IsChildHovered(10)) then
+		print("refreshing , ahhh",hover,self.ProjectTree:GetSelectedItem())
+
+		if self.ProjectTree:GetSelectedItem() and code == KEY_F5 then
+			self:RefreshProjectTree( self.ProjectTree:GetSelectedItem() )
+
+			self.ProjectTree:SetSelectedItem(nil)
+			return
+		end
+
+		if hover:GetName() == "DTree_Node_Button" and code == KEY_F5 then
+			self:RefreshProjectTree( hover:GetParent() )
+			return
+		end
+
+		if code == KEY_F5 then
+
+			self:RefreshProjectTree()
+		end
+	end
+
+
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )
@@ -434,11 +519,16 @@ function PANEL:OnReleased()
 end
 
 function PANEL:DoClick()
-	print "clocked"
 end
 
 function PANEL:PerformLayout()
 	self.BaseClass.PerformLayout( self )
+end
+
+function PANEL:OnKeyCodePressed( code )
+    if self:GetParent().OnKeyCodePressed then
+        self:GetParent():OnKeyCodePressed( code )
+    end
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )

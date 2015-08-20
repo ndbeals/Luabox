@@ -580,13 +580,13 @@ end
 -- Writes a String to the network buffer.
 --@param str String to send.
 function Networker:WriteString( str )
-	if #str <= 250 then --base message is atleast 4 bytes long
+	if #str <= 250 then --base message is atleast 2 bytes long
 		self:AddToBuffer( { net.WriteUInt , 1 , 16 , Size = 2 } )
 		self:AddToBuffer( { net.WriteString , str , Size = #str } )
 	else
 		local chunks = math.ceil( #str / 250 )
 
-		if chunks > 2^16 then error("Net message too large >15.625 Mega Bytes (why on earth do you need a single string this large?)",3) end
+		if chunks > 2^16 then error("Net message too large >15.625 MegaBytes (why on earth do you need a single string this large?)",3) end
 
 		self:AddToBuffer( { net.WriteUInt , chunks , 16 , Size = 2 } )
 
@@ -938,6 +938,8 @@ function Container:Initialize( player , default_libs )
 
 	if CLIENT then
 		player = LocalPlayer()
+
+		self.FileSystem = FileSystem( "luabox" )
 	end
 	self.Player = player
 
@@ -956,6 +958,15 @@ function Container:Initialize( player , default_libs )
 			error("Operations quota exceeded.",2)
 		end
 	end
+end
+
+--- Get FileSystem.
+-- Gets the player's filesystem, CLIENT ONLY
+--@return FileSystem the player filesystem
+if CLIENT then
+function Container:GetFileSystem()
+	return self.FileSystem
+end
 end
 
 --- Set Libraries.
@@ -996,9 +1007,9 @@ function Container:AddFunctionsToEnvironment( env )
 end
 
 --- Select Environment.
--- Returns an already existing environment object from the containers Environment table
---@param index the index of the environment in the table, starts at 1
---@return Environment: The environment object
+-- Returns an already existing environment object from the containers Environment table.
+--@param index the index of the environment in the table, starts at 1.
+--@return Environment: The environment object.
 function Container:SelectEnvironment( index )
 	return self.Environments[ index ]
 end
@@ -1204,13 +1215,110 @@ LoadLibraries()
 
 
 
+--if CLIENT then --filesystem only exists on clients
+
+if not file.Exists( "luabox" , "DATA" ) then
+	file.CreateDir( "luabox" )
+end
+
+FileSystem = Class()
+
+function FileSystem:Initialize( path )
+	path = path or "luabox"
+	self:SetPath( path )
+
+	self.Files = {}
+	self.Directories = {}
+
+	self:Build()
+end
+
+function FileSystem:SetPath( path )
+	self.Path = path
+
+	self:SetShortPath( path )
+end
+
+function FileSystem:GetPath()
+	return self.Path
+end
+
+function FileSystem:SetShortPath( path )
+	local paths = string.Explode( "/" , path )
+
+	self.ShortPath = paths[ #paths ]
+end
+
+function FileSystem:GetShortPath()
+	return self.ShortPath
+end
+
+FileSystem.GetName = FileSystem.GetShortPath
+
+function FileSystem:GetFiles()
+	return self.Files
+end
+
+function FileSystem:GetDirectories()
+	return self.Directories
+end
+
+function FileSystem:Build()
+	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
+
+	self.Files = files
+
+	for i , v in ipairs( directories ) do
+		self.Directories[ i ] = FileSystem( self.Path .. "/" .. v )
+	end
+end
+
+function FileSystem:Refresh( recurse )
+	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
+
+	self.Files = files
+
+	local i = 1
+	while i <= (#self.Directories) do
+
+		if not TableHasValue( directories , self.Directories[i]:GetName()) then
+
+			table.remove( self.Directories , i )
+
+			i = i - 1
+		end
+
+		i = i + 1
+	end
+
+
+	for i , v in ipairs( directories ) do
+		local new = true
+		for _i , _v in ipairs( self.Directories ) do
+
+			if v == _v:GetName() then
+				--new = true
+				new = false
+				break
+			end
+
+		end
+
+		if new then
+			table.insert( self.Directories , i , FileSystem( self.Path .. "/" .. v ) )
+		end
+	end
+
+	if recurse then
+		for i , v in ipairs( self.Directories ) do
+			v:Refresh( recurse )
+		end
+	end
+end
 
 
 
-
-
-
-
+--end
 
 
 function reload()

@@ -21,6 +21,8 @@ AccessorFunc( PANEL, "m_bClickOnDragHover",		"ClickOnDragHover" )
    Name: Init
 -----------------------------------------------------------]]
 function PANEL:Init()
+	self.Files = {}
+	self.Directories = {}
 
 	//self:SetMouseInputEnabled( true )
 	//self:SetClickOnDragHover( false )
@@ -30,7 +32,7 @@ function PANEL:Init()
 	self:SetLineHeight( 17 )
 	//self:SetPadding( 2 )
 
-	self.RootNode = self:GetCanvas():Add( "DTree_Node" );
+	self.RootNode = self:GetCanvas():Add( "Luabox_File_Tree_Node" );
 	self.RootNode:SetRoot( self )
 	self.RootNode:SetParentNode( self )
 	self.RootNode:Dock( TOP )
@@ -40,7 +42,51 @@ function PANEL:Init()
 
 	self:SetPaintBackground( true )
 
-end 
+end
+
+function PANEL:SetFileSystem( fs )
+	self.FileSystem = fs
+	self.Files = {}
+	self.Directories = {}
+
+	for i , v in ipairs( fs:GetDirectories() ) do
+		local node = self:AddNode( v:GetName() )
+		node:SetFileSystem( v )
+
+		self.Directories[ i ] = node
+	end
+
+	for i , v in ipairs( fs:GetFiles() ) do
+		local node = self:AddNode( v , "icon16/page.png")
+
+		self.Files[ i ] = node
+	end
+end
+
+function PANEL:Refresh()
+	local del = self.RootNode.ChildNodes
+	self.RootNode.ChildNodes = nil
+	self.RootNode:CreateChildNodes()
+	del:Remove()
+
+	self.Files = {}
+	self.Directories = {}
+
+	self.FileSystem:Refresh( true )
+
+	for i , v in ipairs( self.FileSystem:GetDirectories() ) do
+		local node = self:AddNode( v:GetName() )
+		node:SetFileSystem( v )
+
+		self.Directories[ i ] = node
+	end
+
+	for i , v in ipairs( self.FileSystem:GetFiles() ) do
+		local node = self:AddNode( v , "icon16/page.png")
+
+		self.Files[ i ] = node
+	end
+end
 
 --
 -- Get the root node
@@ -157,33 +203,10 @@ function PANEL:LayoutTree()
 
 end
 
---[[---------------------------------------------------------
-   Name: GenerateExample
------------------------------------------------------------]]
-function PANEL:GenerateExample( ClassName, PropertySheet, Width, Height )
-
-	local ctrl = vgui.Create( ClassName )
-		//ctrl:SetPadding( 5 )
-		ctrl:SetSize( 300, 300 )
-
-		local node = ctrl:AddNode( "Node One" )
-		local node = ctrl:AddNode( "Node Two" )
-			local cnode = node:AddNode( "Node 2.1" )
-			local cnode = node:AddNode( "Node 2.2" )
-			local cnode = node:AddNode( "Node 2.3" )
-			local cnode = node:AddNode( "Node 2.4" )
-			local cnode = node:AddNode( "Node 2.5" )
-			for i=1, 64 do
-				local gcnode = cnode:AddNode( "Node 2.5."..i )
-			end
-			local cnode = node:AddNode( "Node 2.6" )
-		local node = ctrl:AddNode( "Node Three ( Maps Folder )" )
-			node:MakeFolder( "maps", "GAME" )
-		local node = ctrl:AddNode( "Node Four" )
-
-
-	PropertySheet:AddSheet( ClassName, ctrl, nil, true, true )
-
+function PANEL:OnKeyCodePressed( code )
+    if self:GetParent().OnKeyCodePressed then
+        self:GetParent():OnKeyCodePressed( code )
+    end
 end
 
 
