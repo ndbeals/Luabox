@@ -21,6 +21,19 @@ print = function(...)
 	prn( RealTime() ,"\t:", ... )
 end
 
+Colors = {
+    Gray        = Color (0x80, 0x80, 0x80, 0xFF),
+    DarkGray    = Color (0xA9, 0xA9, 0xA9, 0xFF),
+    LightGray   = Color (0xD3, 0xD3, 0xD3, 0xFF),
+    --Gray707070  = Color (0x70, 0x70, 0x70, 0xFF),
+	Outline     = Color ( 59 , 59 , 59 ),
+	FillerGray  = Color ( 157 , 161 , 165 ),
+	Black 		= Color (0x00, 0x00, 0x00, 0xFF),
+	White		= Color ( 255 , 255 , 255 , 255),
+	BorderGray	= Color ( 112 , 112 , 112 , 255),
+	Line		= Color ( 91 , 96 , 100 , 255 ),
+}
+
 --- Get Player Container.
 -- Gets a the container that the player owns, caches the results because why not. creates a container if there isn't one.
 --@param player The player to get the container of.
@@ -1160,9 +1173,9 @@ local function infloop_detection_replacement()
 end
 
 --- Run Sandbox Function.
--- Runs the sandboxed function you pass it with the arguments you pass it. this assumes the functions you pass it were created in the sandbox
---@param func the function to call
---@param ... varargs to call the function with
+-- Runs the sandboxed function you pass it with the arguments you pass it. this assumes the functions you pass it were created in the sandbox.
+--@param func the function to call.
+--@param ... varargs to call the function with.
 function Container:RunSandboxFunction( func , ... )
 	self.ops = 0
 
@@ -1221,16 +1234,44 @@ if not file.Exists( "luabox" , "DATA" ) then
 	file.CreateDir( "luabox" )
 end
 
+
+--- FileSystem Class.
+--@section FileSystem
+
 FileSystem = Class()
 
-function FileSystem:Initialize( path )
-	path = path or "luabox"
-	self:SetPath( path )
-
-	self.Files = {}
-	self.Directories = {}
+--- FileSystem Class Constructor.
+-- Creates the FileSystem class (CLIENT ONLY).
+--@param path File path for the Filesystem to load.
+--@param root the root file system
+function FileSystem:Initialize( path , root )
+	self:SetSingleFile( false )
+	self:SetPath( path or "luabox" )
+	self:SetRootFileSystem( root or self )
 
 	self:Build()
+end
+
+--- SetSingleFile.
+-- Sets if the File System represents just a single file
+--@param bool is single file
+function FileSystem:SetSingleFile( bool )
+	self.SingleFile = bool
+end
+
+--- GetSingleFile.
+-- Gets if the File System represents just a single file
+--@return singlefile boolean if it's a single file
+function FileSystem:GetSingleFile()
+	return self.SingleFile
+end
+
+function FileSystem:GetRootFileSystem()
+	return self.RootFileSystem
+end
+
+function FileSystem:SetRootFileSystem( root )
+	self.RootFileSystem = root
 end
 
 function FileSystem:SetPath( path )
@@ -1263,20 +1304,118 @@ function FileSystem:GetDirectories()
 	return self.Directories
 end
 
+function FileSystem:Delete()
+	for i , v in ipairs( self.Files ) do
+		v:Delete()
+	end
+
+	for i , v in ipairs( self.Directories ) do
+		v:Delete()
+	end
+
+	file.Delete( self:GetPath() )
+
+	self:GetRootFileSystem():Refresh( true )
+end
+
+function FileSystem:Copy( destfs )
+	if not destfs then return false end
+	if (destfs:GetPath() .. "/" .. self:GetShortPath()) == self:GetPath() then return false end
+	if destfs:GetSingleFile() then return false end
+
+	local newpath = destfs:GetPath() .. "/" .. self:GetShortPath()
+
+	local newfs = FileSystem( newpath , destfs )
+
+	file.CreateDir( destfs:GetPath() .. "/" .. self:GetShortPath() )
+
+	table.insert( destfs.Directories , newfs )
+
+	for i , v in ipairs( self.Files ) do
+		v:Copy( newfs )
+	end
+
+	for i , v in ipairs( self.Directories ) do
+		v:Copy( newfs )
+	end
+
+	self:GetRootFileSystem():Refresh( true )
+
+	return true
+end
+
+function FileSystem:Move( destfs )
+	if not destfs then return false end
+	if (destfs:GetPath() .. "/" .. self:GetShortPath()) == self:GetPath() then return false end
+	if destfs:GetSingleFile() then return false end
+
+	local oldpath = self:GetPath()
+
+	file.CreateDir( destfs:GetPath() .. "/" .. self:GetShortPath() )
+	self:SetPath( destfs:GetPath() .. "/" .. self:GetShortPath() )
+
+	for i , v in ipairs( self.Files ) do
+		v:Move( self )
+	end
+
+	for i , v in ipairs( self.Directories ) do
+		v:Move( self )
+	end
+
+	file.Delete( oldpath )
+
+	self:GetRootFileSystem():Refresh( true )
+
+	return true
+end
+
+function FileSystem:AddFile( name )
+	if not name then return false end
+	if self:GetSingleFile() then return false end
+
+	name = name .. ".txt"
+
+	file.Write( self:GetPath() .. "/" .. name , "" )
+
+	table.insert( self.Files , File( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+
+	self:GetRootFileSystem():Refresh( true )
+end
+
+function FileSystem:AddDirectory( name )
+	if not name then return false end
+	if self:GetSingleFile() then return false end
+
+	--name = name .. ".txt"
+
+	file.CreateDir( self:GetPath() .. "/" .. name )
+
+	table.insert( self.Directories , FileSystem( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+
+	self:GetRootFileSystem():Refresh( true )
+end
+
 function FileSystem:Build()
+	self.Files = {}
+	self.Directories = {}
+
+	if self:GetSingleFile() then return end
+
 	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
 
-	self.Files = files
+	for i , v in ipairs( files ) do
+		self.Files[ i ] = File( self.Path .. "/" .. v , self )
+	end
 
 	for i , v in ipairs( directories ) do
-		self.Directories[ i ] = FileSystem( self.Path .. "/" .. v )
+		self.Directories[ i ] = FileSystem( self.Path .. "/" .. v , self )
 	end
 end
 
 function FileSystem:Refresh( recurse )
-	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
+	if self:GetSingleFile() then return end
 
-	self.Files = files
+	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
 
 	local i = 1
 	while i <= (#self.Directories) do
@@ -1291,7 +1430,6 @@ function FileSystem:Refresh( recurse )
 		i = i + 1
 	end
 
-
 	for i , v in ipairs( directories ) do
 		local new = true
 		for _i , _v in ipairs( self.Directories ) do
@@ -1305,7 +1443,37 @@ function FileSystem:Refresh( recurse )
 		end
 
 		if new then
-			table.insert( self.Directories , i , FileSystem( self.Path .. "/" .. v ) )
+			table.insert( self.Directories , i , FileSystem( self.Path .. "/" .. v , self ) )
+		end
+	end
+
+	i = 1
+	while i <= (#self.Files) do
+
+		if not TableHasValue( files , self.Files[i]:GetName()) then
+
+			table.remove( self.Files , i )
+
+			i = i - 1
+		end
+
+		i = i + 1
+	end
+
+	for i , v in ipairs( files ) do
+		local new = true
+		for _i , _v in ipairs( self.Files ) do
+
+			if v == _v:GetName() then
+				--new = true
+				new = false
+				break
+			end
+
+		end
+
+		if new then
+			table.insert( self.Files , i , File( self.Path .. "/" .. v , self ) )
 		end
 	end
 
@@ -1313,12 +1481,66 @@ function FileSystem:Refresh( recurse )
 		for i , v in ipairs( self.Directories ) do
 			v:Refresh( recurse )
 		end
+		for i , v in ipairs( self.Files ) do
+			v:Refresh( recurse )
+		end
 	end
 end
 
+File = Class( FileSystem )
+
+--- File Class.
+--@section File
+
+--- File Class Constructor.
+-- Creates the FileSystem class (CLIENT ONLY).
+--@param path File path for the Filesystem to load.
+--@param root the root file system
+function File:Initialize( path , root )
+	self:SetSingleFile( true )
+	self:SetPath( path or "luabox" )
+	self:SetRootFileSystem( root or self )
+
+	self.Files = {}
+	self.Directories = {}
+end
+
+function File:Copy( destfs )
+	if not destfs then return false end
+	if (destfs:GetPath() .. "/" .. self:GetShortPath()) == self:GetPath() then return false end
+	if destfs:GetSingleFile() then return false end
+
+	local newpath = destfs:GetPath() .. "/" .. self:GetShortPath()
+
+	local newfs = File( newpath , destfs )
+
+	file.Write( newpath , file.Read( self:GetPath() , "DATA" ) )
+
+	newfs:SetSingleFile( true )
+	table.insert( destfs.Files , newfs )
+
+	return true
+end
+
+function File:Move( destfs )
+	if not destfs then return false end
+	if (destfs:GetPath() .. "/" .. self:GetShortPath()) == self:GetPath() then return false end
+	if destfs:GetSingleFile() then return false end
+
+	file.Write( destfs:GetPath() .. "/" .. self:GetShortPath() , file.Read( self:GetPath() , "DATA" ) )
+	file.Delete( self:GetPath() )
+	self:SetPath( destfs:GetPath() .. "/" .. self:GetShortPath() )
+	return true
+end
+
+function File:Read()
+	return file.Read( self:GetPath() , "DATA" )
+end
+
+--function File:Build() end
 
 
---end
+
 
 
 function reload()

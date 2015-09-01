@@ -1,9 +1,8 @@
 "AddonInfo"
 {
-	"name"		"Propeller Model Pack"
-	"version"	"2.1 SVN"
+	"name"		"Luabox"
+	"version"	"0.8"
 	"up_date"	"n/a"
-	"author_name"	"GiGaBiTe"
-	"author_email"	"n/a"
-	"author_url"	"http://sanzen.in"
+	"author_name"	"TGiFallen"
+	"author_email"	"TGiFallen@gmail.com"
 }

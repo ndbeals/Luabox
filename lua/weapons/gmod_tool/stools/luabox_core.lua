@@ -6,7 +6,7 @@ TOOL.Tab        = "Wire"
 
 TOOL.ClientConVar =
 {
-	model = "models/beer/wiremod/gate_e2.mdl"
+	model = "models/foran/luabox/pentium4.mdl"
 }
 ---[[
 if CLIENT then
@@ -25,6 +25,20 @@ if CLIENT then
 		local luaboxmenu = vgui.CreateFromTable( menudef )
 		pnl:AddPanel( luaboxmenu )
 
+		function RELOADCPANEL()
+			local menudef = vgui.RegisterFile( "../addons/Luabox/lua/luabox/ui/toolmenu.lua" )
+
+			print("remenudeved",pnl:GetSize())
+
+			pnl:DockPadding( 0 , 0 , 0 , 0 )
+
+
+			pnl:Clear()
+
+			local luaboxmenu = vgui.CreateFromTable( menudef )
+			pnl:AddPanel( luaboxmenu )
+
+		end
 	end
 end
 

@@ -146,19 +146,10 @@ function PANEL:OnMousePressed(code)
 
 		if(self:HasSelection()) then
 			menu:AddOption("Cut",  function()
-				if(self:HasSelection()) then
-					self.clipboard = self:GetSelection()
-					self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
-					SetClipboardText(self.clipboard)
-					self:SetSelection()
-				end
+				self:Cut()
 			end)
 			menu:AddOption("Copy",  function()
-				if(self:HasSelection()) then
-					self.clipboard = self:GetSelection()
-					self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
-					SetClipboardText(self.clipboard)
-				end
+				self:Copy()
 			end)
 		end
 
@@ -276,7 +267,7 @@ function PANEL:SyntaxColorLine(row)
 	colors["string2"] = colors["string"];
 
 	self:NextChar();
-	--print("--------------------------------------------------------------------------startf")
+
 	while self.char do
 
 		self.str = "";
@@ -291,7 +282,6 @@ function PANEL:SyntaxColorLine(row)
 			if lasttoken == "functiondef" then
 				self.DefinedHighlights[ lastword ] = "f"
 				lasttoken = ""
-				--print("whendo")
 			elseif lasttoken == "variable" then
 				self.DefinedHighlights[ lastword ] = "v"
 				lasttoken = ""
@@ -309,7 +299,7 @@ function PANEL:SyntaxColorLine(row)
 		elseif(self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z") then
 
 			while self.char and (self.char >= "a" and self.char <= "z" or self.char >= "A" and self.char <= "Z" or
-			self.char >= "0" and self.char <= "9" or self.char == "_") do self:NextChar(); end
+			self.char >= "0" and self.char <= "9" or self.char == "_" or self.char == "." ) do self:NextChar(); end
 
 			local sstr = string.Trim(self.str)
 
@@ -361,7 +351,6 @@ function PANEL:SyntaxColorLine(row)
 				lasttoken = "functiondef"
 
 				lastword = sstr
-				--print("lastword",lastword)
 			elseif nexttoken == "variable" then
 				token = "variable"
 				nexttoken = ""
@@ -372,8 +361,6 @@ function PANEL:SyntaxColorLine(row)
 					token = "expression"
 					nexttoken = "functiondef"
 				end
-
-				--print("lastwordvar",lastword , token)
 			end
 			lastword = sstr
 		elseif(self.char == "\"") then -- TODO: Fix multiline strings, and add support for [[stuff]]!
@@ -423,7 +410,6 @@ function PANEL:SyntaxColorLine(row)
 		elseif self:CheckHighlight( string.Trim(self.str) ) == "v" then
 			token = "variable"
 		end
-		--print("final token" , token , string.Trim(self.str) , self.DefinedHighlights["ge"])
 
 		color = colors[token]
 		if(#cols > 1 and color == cols[#cols][2]) then
@@ -432,13 +418,24 @@ function PANEL:SyntaxColorLine(row)
 			cols[#cols + 1] = {self.str, color}
 		end
 	end
-	--print("--------------------------------------------------------------------------endf\n\n")
-
 
 	return cols;
 end
 
 function PANEL:CheckHighlight( str )
+	local explo = string.Explode( "." , str )
+	if #explo > 1 then
+		local next = self.DefinedHighlights[ explo[1] ]
+		for i = 2 , #explo do
+			if not next then break end
+			next = next[ explo[i] ]
+		end
+		if type( next )== "function" then
+			return "f"
+		elseif type( next ) != "nil" then
+			return "v"
+		end
+	end
 	if self.DefinedHighlights[ str ] == "f" or type(self.DefinedHighlights[ str]) == "function" then
 		return "f"
 	elseif (self.DefinedHighlights[ str ] == "v" or type(self.DefinedHighlights[ str]) != "function") and self.DefinedHighlights[ str ] then
@@ -560,7 +557,6 @@ function PANEL:Paint()
 
 	self.Scroll[1] = math.floor(self.ScrollBar:GetScroll() + 1)
 
-	PrintTable(self.DefinedHighlights)
 	self.DefinedHighlights = setmetatable( {} , {__index = lookupfunc } )
 
 	for i=self.Scroll[1],self.Scroll[1]+self.Size[1]+1 do
@@ -759,10 +755,16 @@ function PANEL:_OnLoseFocus()
 	end
 end
 
+function PANEL:SetIgnoreTilde( ignore )
+	self.IgnoreTilde = ignore
+end
+
 function PANEL:_OnTextChanged()
 	local ctrlv = false
 	local text = self.TextEntry:GetValue()
 	self.TextEntry:SetText("")
+
+	if self.IgnoreTilde and text == "`" then return end
 
 	if text == " " or text == "\n" then
 		self.LastWord = ""
@@ -897,18 +899,9 @@ function PANEL:_OnKeyCodeTyped(code)
 		elseif(code == KEY_Y) then
 			self:DoRedo()
 		elseif(code == KEY_X) then
-			if(self:HasSelection()) then
-				self.clipboard = self:GetSelection()
-				self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
-				SetClipboardText(self.clipboard)
-				self:SetSelection()
-			end
+			self:Cut()
 		elseif(code == KEY_C) then
-			if(self:HasSelection()) then
-				self.clipboard = self:GetSelection()
-				self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
-				SetClipboardText(self.clipboard)
-			end
+			self:Copy()
 		elseif(code == KEY_UP) then
 			self.Scroll[1] = self.Scroll[1] - 1
 			if(self.Scroll[1] < 1) then self.Scroll[1] = 1 end
@@ -1193,6 +1186,23 @@ end
 
 function PANEL:Paste()
 	self.TextEntry:PostMessage ("DoPaste", "", "")
+end
+
+function PANEL:Copy()
+	if(self:HasSelection()) then
+		self.clipboard = self:GetSelection()
+		self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
+		SetClipboardText(self.clipboard)
+	end
+end
+
+function PANEL:Cut()
+	if(self:HasSelection()) then
+		self.clipboard = self:GetSelection()
+		self.clipboard = string.Replace(self.clipboard, "\n", "\r\n")
+		SetClipboardText(self.clipboard)
+		self:SetSelection()
+	end
 end
 
 function PANEL:OnTextChanged()

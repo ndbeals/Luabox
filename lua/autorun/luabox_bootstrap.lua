@@ -2,7 +2,7 @@
 
 luabox = luabox or {} --								Create the global table
 
-
+include("luabox/modules/luabox.lua")
 
 if SERVER then
 	AddCSLuaFile("luabox/cl_luabox.lua")
@@ -18,13 +18,13 @@ if SERVER then
 	AddCSLuaFile("luabox/ui/splitter.lua")
 	AddCSLuaFile("luabox/ui/filetree_node.lua")
 	AddCSLuaFile("luabox/ui/toolmenu.lua")
+	AddCSLuaFile("luabox/ui/tab_close.lua")
+	AddCSLuaFile("luabox/ui/filemanager.lua")
+	AddCSLuaFile("luabox/ui/folderview.lua")
 
 	include("luabox/sh_luabox.lua")
 	include("luabox/sv_luabox.lua")
 else
-	include("luabox/sh_luabox.lua")
-	include("luabox/cl_luabox.lua")
-
 	include("luabox/ui/editor.lua")
 	include("luabox/ui/editorframe.lua")
 	include("luabox/ui/filetree.lua")
@@ -33,6 +33,10 @@ else
 	include("luabox/ui/consoleoutput.lua")
 	include("luabox/ui/splitter.lua")
 	include("luabox/ui/filetree_node.lua")
-end
+	include("luabox/ui/tab_close.lua")
+	include("luabox/ui/filemanager.lua")
+	include("luabox/ui/folderview.lua")
 
-include("luabox/modules/luabox.lua")
+	include("luabox/sh_luabox.lua")
+	include("luabox/cl_luabox.lua")
+end

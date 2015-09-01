@@ -2,14 +2,16 @@ PANEL = {}
 PANEL.ClassName = "Luabox_Splitter"
 PANEL.Base = "DPanel"
 
---AccessorFunc( PANEL, "Orientation", "Orientation" ) -- 0 is horizontal, 1 is vertical
-
 local colors = {
     Gray        = Color (0x80, 0x80, 0x80, 0xFF),
     DarkGray    = Color (0xA9, 0xA9, 0xA9, 0xFF),
     LightGray   = Color (0xD3, 0xD3, 0xD3, 0xFF),
-    Gray707070  = Color (0x70, 0x70, 0x70, 0xFF)
+    Gray707070  = Color (0x70, 0x70, 0x70, 0xFF),
+	Outline     = Color ( 59 , 59 , 59 ),
+	FillerGray  = Color ( 153 , 157 , 162 ),
 }
+
+--AccessorFunc( PANEL, "Orientation", "Orientation" ) -- 0 is horizontal, 1 is vertical
 
 function PANEL:Init()
     self:SetMouseInputEnabled( true )
@@ -38,13 +40,10 @@ function PANEL:GetOrientation()
     return self.Orientation
 end
 
-function PANEL:GetActiveTab()
-end
-
 function PANEL:Paint( w , h )
-    --derma.SkinHook( "Paint" , "Panel" , self , w , h )
-    derma.SkinHook( "Paint" , "PropertySheet" , self , w , h )
-    --draw.RoundedBox( 2 , 0 , 0 , w , h , self:GetBackgroundColor() )
+    draw.RoundedBox( 2 , 0 , 0 , w , h , colors.Outline )
+    draw.RoundedBox( 2 , 1 , 1 , w - 2 , h - 2 , colors.FillerGray )
+
 
     surface.SetDrawColor (GLib.Colors.LightGray)
 	if self.Orientation == 1 then
@@ -76,47 +75,40 @@ function PANEL:OnReleased()
     self.Dragging = nil
 end
 
-function PANEL:Think()
+function PANEL:PerformLayout()
+    self.BaseClass.PerformLayout( self )
+
     if ( self.Depressed ) then
         local mousex = math.Clamp( gui.MouseX(), 0, ScrW()-1 )
 	    local mousey = math.Clamp( gui.MouseY(), 0, ScrH()-1 )
 
-        local x = mousex - self.Dragging[1]
-        local y = mousey - self.Dragging[2]
-
-        x = math.Clamp( x, self.MinX , self.MaxX )
-        y = math.Clamp( y, self.MinY , self.MaxY )
-
         if self:GetOrientation() == 1  then
+            local x = mousex - self.Dragging[1]
+            x = math.Clamp( x, self.MinX , self.MaxX )
 
             local diff = x - self.x
 
             if self.Panel1 and diff != 0 then
                 self.Panel1:SetWide( self.Panel1:GetWide() + diff )
-                self.Panel1:InvalidateParent( true )
-                self.Panel1:InvalidateChildren( true )
             end
             if self.Panel2 and diff != 0 then
                 self.Panel2:SetWide( self.Panel2:GetWide() - diff )
                 self.Panel2.x = self.Panel2.x + diff
-                self.Panel2:InvalidateParent( true )
-                self.Panel2:InvalidateChildren( true )
             end
 
             self.x = x
         else
+            local y = mousey - self.Dragging[2]
+            y = math.Clamp( y, self.MinY , self.MaxY )
+
             local diff = y - self.y
 
             if self.Panel1 and diff != 0 then
                 self.Panel1:SetTall( self.Panel1:GetTall() + diff )
-                self.Panel1:InvalidateParent( true )
-                self.Panel1:InvalidateChildren( true )
             end
             if self.Panel2 and diff != 0 then
                 self.Panel2:SetTall( self.Panel2:GetTall() - diff )
                 self.Panel2.y = self.Panel2.y + diff
-                self.Panel2:InvalidateParent( true )
-                self.Panel2:InvalidateChildren( true )
             end
 
             self.y = y
@@ -152,8 +144,11 @@ function PANEL:SetupBounds( Min , Max )
     end
 end
 
-function PANEL:PerformLayout()
-	self.BaseClass.PerformLayout( self )
+function PANEL:OnCursorMoved()
+    if self.Depressed then
+        --self:PerformLayout()
+        self:InvalidateLayout( true )
+    end
 end
 
 function PANEL:OnMousePressed( mousecode )
@@ -175,51 +170,6 @@ function PANEL:OnMouseReleased( mousecode )
 	self.Depressed = nil
 	self:OnReleased()
 	self:InvalidateLayout( true )
-	--
-	-- If we were being dragged then don't do the default behaviour!
-	--
-    --[[
-	if ( self:DragMouseRelease( mousecode ) ) then
-		return
-	end
-
-	if ( self:IsSelectable() && mousecode == MOUSE_LEFT ) then
-
-		local canvas = self:GetSelectionCanvas()
-		if ( canvas ) then
-			canvas:UnselectAll()
-		end
-
-	end
-
-	if ( !self.Hovered ) then return end
-
-	--
-	-- For the purposes of these callbacks we want to
-	-- keep depressed true. This helps us out in controls
-	-- like the checkbox in the properties dialog. Because
-	-- the properties dialog will only manualloy change the value
-	-- if IsEditing() is true - and the only way to work out if
-	-- a label/button based control is editing is when it's depressed.
-	--
-	self.Depressed = true
-
-	if ( mousecode == MOUSE_RIGHT ) then
-		self:DoRightClick()
-	end
-
-	if ( mousecode == MOUSE_LEFT ) then
-		self:DoClickInternal()
-		self:DoClick()
-	end
-
-	if ( mousecode == MOUSE_MIDDLE ) then
-		self:DoMiddleClick()
-	end
-
-	self.Depressed = nil
-    --]]
-
 end
 
 function PANEL:OnKeyCodePressed( code )
@@ -229,102 +179,3 @@ function PANEL:OnKeyCodePressed( code )
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )
---[[
-function PANEL:OnMousePressed( mousecode )
-    print("test",mousecode)
-
-	if ( self:GetDisabled() ) then return end
-
-	if ( mousecode == MOUSE_LEFT && !dragndrop.IsDragging() && self.m_bDoubleClicking ) then
-
-		if ( self.LastClickTime && SysTime() - self.LastClickTime < 0.2 ) then
-
-			self:DoDoubleClickInternal()
-			self:DoDoubleClick()
-			return
-
-		end
-
-		self.LastClickTime = SysTime()
-	end
-
-	-- If we're selectable and have shift held down then go up
-	-- the parent until we find a selection canvas and start box selection
-	if ( self:IsSelectable() && mousecode == MOUSE_LEFT ) then
-
-		if ( input.IsShiftDown() ) then
-			return self:StartBoxSelection()
-		end
-
-	end
-
-	self:MouseCapture( true )
-	self.Depressed = true
-	self:OnDepressed()
-	self:InvalidateLayout( true )
-
-	--
-	-- Tell DragNDrop that we're down, and might start getting dragged!
-	--
-	self:DragMousePress( mousecode )
-
-end
-
-function PANEL:OnDepressed()
-
-end
-
-function PANEL:OnMouseReleased( mousecode )
-	self:MouseCapture( false )
-
-	if ( self:GetDisabled() ) then return end
-	if ( !self.Depressed ) then return end
-
-	self.Depressed = nil
-	self:OnReleased()
-	self:InvalidateLayout( true )
-	--
-	-- If we were being dragged then don't do the default behaviour!
-	--
-	if ( self:DragMouseRelease( mousecode ) ) then
-		return
-	end
-
-	if ( self:IsSelectable() && mousecode == MOUSE_LEFT ) then
-
-		local canvas = self:GetSelectionCanvas()
-		if ( canvas ) then
-			canvas:UnselectAll()
-		end
-
-	end
-
-	if ( !self.Hovered ) then return end
-
-	--
-	-- For the purposes of these callbacks we want to
-	-- keep depressed true. This helps us out in controls
-	-- like the checkbox in the properties dialog. Because
-	-- the properties dialog will only manualloy change the value
-	-- if IsEditing() is true - and the only way to work out if
-	-- a label/button based control is editing is when it's depressed.
-	--
-	self.Depressed = true
-
-	if ( mousecode == MOUSE_RIGHT ) then
-		self:DoRightClick()
-	end
-
-	if ( mousecode == MOUSE_LEFT ) then
-		self:DoClickInternal()
-		self:DoClick()
-	end
-
-	if ( mousecode == MOUSE_MIDDLE ) then
-		self:DoMiddleClick()
-	end
-
-	self.Depressed = nil
-
-end
---]]

@@ -1,12 +1,6 @@
---[[   _
-	( )
-   _| |   __   _ __   ___ ___     _ _
- /'_` | /'__`\( '__)/' _ ` _ `\ /'_` )
-( (_| |(  ___/| |   | ( ) ( ) |( (_| |
-`\__,_)`\____)(_)   (_) (_) (_)`\__,_)
-
---]]
 local PANEL = {}
+PANEL.ClassName = "Luabox_Scroll_Panel"
+PANEL.Base = "DPanel"
 
 AccessorFunc( PANEL, "Padding", 	"Padding" )
 AccessorFunc( PANEL, "pnlCanvas", 	"Canvas" )
@@ -24,13 +18,6 @@ function PANEL:Init()
         self:InvalidateLayout()
 	end
     --]]
-
-	self.pnlCanvas.aPaint = function( pnl , w , h 	)
-		render.SetScissorRect( 0 , 0 , w / 2 , h / 2 , true )
-			derma.SkinHook( "Paint", "Tree", self, w, h )
-		render.SetScissorRect( 0 , 0 , 0 , 0 , false )
-		return true
-	end
 
 	-- Create the scroll bar
     self.HBar = vgui.Create( "Luabox_HScroll_Bar" , self )
@@ -109,54 +96,43 @@ end
 local function recursechildren( tab , width , height )
 	width = width or 0
     height = height or 0
-    local mw , mh = 0 , 0
-    local haschild = false
+    local mw = 0
 
 	if #tab > 0 then
 		width = width + tab[1]:GetIndentSize() + 3
 
-        for k , pnl in pairs( tab ) do
-            height = height + 17
-
-            if pnl.ChildNodes then
-                haschild = true
-            end
-        end
-
 		for k , pnl in pairs( tab ) do
-            if pnl.ChildNodes then
-    			if #pnl.ChildNodes:GetChildren() > 0 and pnl.m_bExpanded then
-    				width , height = recursechildren( pnl.ChildNodes:GetChildren() , width , height )
-                    break
-                else
-                    local w , h = surface.GetTextSize( pnl:GetText() )
+			if pnl.ChildNodes then
+				local w , h
 
-                    if w > mw then
-                        mw = w
-                    end
-                end
-                break
-            elseif not haschild then
-                local w , h = surface.GetTextSize(pnl:GetText())
+				height = height + 17
 
-                if w > mw then
-                    mw = w
-                end
-            end
+				if #pnl.ChildNodes:GetChildren() > 0 and pnl.m_bExpanded then
+					w , height = recursechildren( pnl.ChildNodes:GetChildren() , 0 , height  )
+	            else
+	                w , h = pnl.Label:GetContentSize()
+	            end
+
+				if w > mw then
+					mw = w
+				end
+			end
 		end
         width = width + mw
 	end
-
-	width = width
 
 	return width , height
 end
 
 function PANEL:SizeCanvasToContents()
-	
-    if self.RootNode.ChildNodes then
-        self:GetCanvas():SetSize( recursechildren( self.RootNode.ChildNodes:GetChildren() , 36 , 51 ) )
-    end
+
+	if self.RootNode then
+	    if self.RootNode.ChildNodes then
+	        self:GetCanvas():SetSize( recursechildren( self.RootNode.ChildNodes:GetChildren() , 16 , 50 ) )
+	    end
+	else
+		self:GetCanvas():SizeToChildren( true , true )
+	end
 
     if self:GetWide() > self:GetCanvas():GetWide() then
         self:GetCanvas():SetWide( self:GetWide() )
@@ -225,12 +201,20 @@ end
 function PANEL:PerformLayout( Wide , Tall )
 	self:Rebuild()
 
-    self.VBar:SetUp( Tall, self.pnlCanvas:GetTall() )
-    self.HBar:SetUp( Wide, self.pnlCanvas:GetWide() )
 
 	self.pnlCanvas:SetPos( self.HBar:GetOffset() , self.VBar:GetOffset() )
 
-    self:Rebuild()
+	if self.VBar.Enabled and not self.RootNode then
+		self.pnlCanvas:SetWide( Wide - self.VBar:GetWide() )
+	end
+	if self.HBar.Enabled and not self.RootNode then
+		self.pnlCanvas:SetTall( Tall - self.HBar:GetTall() )
+	end
+
+    self.VBar:SetUp( Tall, self.pnlCanvas:GetTall() )
+    self.HBar:SetUp( Wide, self.pnlCanvas:GetWide() )
+
+    --self:Rebuild()
 end
 
 function PANEL:Clear()
@@ -245,4 +229,4 @@ function PANEL:OnKeyCodePressed( code )
     end
 end
 
-vgui.Register( "Luabox_Scroll_Panel", PANEL, "DPanel" )
+vgui.Register( PANEL.ClassName , PANEL, PANEL.Base )
