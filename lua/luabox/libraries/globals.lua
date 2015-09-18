@@ -4,6 +4,7 @@ local netc = container:GetNetworker()
 
 CLIENT = CLIENT
 SERVER = SERVER
+pairs = pairs
 
 local _print = print
 function print( ... )

@@ -1394,7 +1394,7 @@ function FileSystem:AddDirectory( name )
 
 	--name = name .. ".txt"
 
-	local directory = FileSystem( self:GetPath() .. "/" .. name , self) )
+	local directory = FileSystem( self:GetPath() .. "/" .. name , self)
 
 	file.CreateDir( self:GetPath() .. "/" .. name )
 
