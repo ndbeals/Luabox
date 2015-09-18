@@ -1,14 +1,16 @@
 --Copyright 2014 Nathan Beals
+EntityProxy = luabox.Class()
 local container , ply , env = ...
-local netc = container:GetNetworker()
 
 local EntLookup = luabox.WeakTable() --two way look up table, use the actual entity as the key to get the entity proxy class, or use the entity proxy class as the key and get the actual entity
 env.EntLookup = EntLookup
 
-EntityProxy = luabox.Class()
+local netc = container:GetNetworker()
+
 local G_Entity = Entity
 
 local check = luabox.CanUse
+print("WGYHAT IS CHECL",check)
 --local IsValid = IsValid
 
 
@@ -28,13 +30,6 @@ function EntityProxy:__tostring()
     return string.format( "Entity [%s][%s]" , tostring( self.EntIndex ) , self.Class )
 end
 
-function EntityProxy:Remove()
-    return EntLookup[ self ]:Remove()
-end
-
-function EntityProxy:Test()
-    print("hi there")
-end
 
 if SERVER then
 function EntityProxy:CreatedByMap()
@@ -43,10 +38,6 @@ end
 else
 
 
-end
-
-function EntityProxy:AlignAngles( ... )
-    return EntLookup[ self ]:AlignAngles( ... )
 end
 
 function EntityProxy:BoundingRadius()
@@ -70,7 +61,7 @@ function EntityProxy:EyeAngles()
 end
 
 function EntityProxy:EyePos()
-    return EntLookup[ self ]:EyePos()
+    return VectorProxy( EntLookup[ self ]:EyePos() )
 end
 
 function EntityProxy:FindBodygroupByName( ... )
@@ -79,10 +70,6 @@ end
 
 function EntityProxy:FindTransitionSequence( ... )
     return EntLookup[ self ]:FindTransitionSequence( ... )
-end
-
-function EntityProxy:FollowBone( ... )
-    return EntLookup[ self ]:FollowBone( ... )
 end
 
 function EntityProxy:GetAbsVelocity()
@@ -94,7 +81,9 @@ function EntityProxy:GetAngles()
 end
 
 function EntityProxy:GetAttachment( ... )
-    return EntLookup[ self ]:GetAttachment( ... )
+    local results = EntLookup[ self ]:GetAttachment( ... )
+
+    return { Ang = AngleProxy( results.Ang ) , Pos = VectorProxy( results.Pos ) }
 end
 
 function EntityProxy:GetAttachments()
@@ -115,7 +104,7 @@ function EntityProxy:GetCollisionGroup()
 end
 
 function EntityProxy:GetColor()
-    return EntLookup[ self ]:GetColor()
+    return ColorProxy( EntLookup[ self ]:GetColor() )
 end
 
 function EntityProxy:GetForward()
@@ -127,7 +116,7 @@ function EntityProxy:GetGravity()
 end
 
 function EntityProxy:GetGroundEntity()
-	return EntLookup[ self ]:GetGroundEntity()
+	return EntityProxy( EntLookup[ self ]:GetGroundEntity() )
 end
 
 function EntityProxy:GetHitBoxBone( ... )
@@ -214,7 +203,7 @@ function EntityProxy:GetModelRenderBounds()
 end
 
 function EntityProxy:GetModelScale()
-	return EntLookup[ self ]:GetModelScale()
+	return VectorProxy( EntLookup[ self ]:GetModelScale() )
 end
 
 function EntityProxy:GetMoveCollide()
@@ -222,7 +211,7 @@ function EntityProxy:GetMoveCollide()
 end
 
 function EntityProxy:GetMoveParent()
-	return EntLookup[ self ]:GetMoveParent()
+	return EntityProxy( EntLookup[ self ]:GetMoveParent() )
 end
 
 function EntityProxy:GetMoveType()
@@ -242,11 +231,11 @@ function EntityProxy:GetNumPoseParameters()
 end
 
 function EntityProxy:GetOwner()
-	return EntLookup[ self ]:GetOwner()
+	return PlayerProxy( EntLookup[ self ]:GetOwner() )
 end
 
 function EntityProxy:GetParent()
-	return EntLookup[ self ]:GetParent()
+	return EntityProxy( EntLookup[ self ]:GetParent() )
 end
 
 function EntityProxy:GetParentAttachment()
@@ -254,7 +243,7 @@ function EntityProxy:GetParentAttachment()
 end
 
 function EntityProxy:GetPhysicsObject() -- ????
-	return EntLookup[ self ]:GetPhysicsObject()
+	return PhysicsObjectProxy( EntLookup[ self ]:GetPhysicsObject() )
 end
 
 function EntityProxy:GetPhysicsObjectCount()
@@ -270,7 +259,7 @@ function EntityProxy:GetPlaybackRate()
 end
 
 function EntityProxy:GetPos()
-	return EntLookup[ self ]:GetPos()
+	return VectorProxy( EntLookup[ self ]:GetPos() )
 end
 
 function EntityProxy:GetPoseParameter( ... )
@@ -286,7 +275,7 @@ function EntityProxy:GetPoseParameterRange( ... )
 end
 
 function EntityProxy:GetRagdollOwner()
-	return EntLookup[ self ]:GetRagdollOwner()
+	return PlayerProxy( EntLookup[ self ]:GetRagdollOwner() )
 end
 
 function EntityProxy:GetRenderFX()
@@ -374,12 +363,19 @@ function EntityProxy:GetSubModels()
 	return EntLookup[ self ]:GetSubModels()
 end
 
-function EntityProxy:GetTable()
-	return EntLookup[ self ]:GetTable()
-end
+-- function EntityProxy:GetTable()
+-- 	return EntLookup[ self ]:GetTable()
+-- end
 
 function EntityProxy:GetTouchTrace()
-	return EntLookup[ self ]:GetTouchTrace()
+    local tr = EntLookup[ self ]:GetTouchTrace()
+    tr.Entity = EntityProxy( tr.Entity )
+    tr.HitNormal = VectorProxy( tr.HitNormal )
+    tr.HitPos = VectorProxy( tr.HitPos )
+    tr.Normal = VectorProxy( tr.Normal )
+    tr.StartPos = VectorProxy( tr.StartPos )
+
+	return tr
 end
 
 function EntityProxy:GetTransmitWithParent()
@@ -430,8 +426,8 @@ function EntityProxy:IsFlagSet( ... )
 	return EntLookup[ self ]:IsFlagSet( ... )
 end
 
-function EntityProxy:IsLineOfSightClear( ... )
-	return EntLookup[ self ]:IsLineOfSightClear( ... )
+function EntityProxy:IsLineOfSightClear( vec )
+	return EntLookup[ self ]:IsLineOfSightClear( env.VecLookup[ vec ] )
 end
 
 function EntityProxy:IsNPC()
@@ -538,11 +534,33 @@ end
 function EntityProxy:WorldToLocalAngles( ... )
 	return AngleProxy( EntLookup[ self ]:WorldToLocalAngles( ... ) )
 end
---[[
-function EntityProxy:
-    return EntLookup[ self ]:
+
+
+
+function EntityProxy:SetPos( vec )
+    if check( ply , EntLookup[ self ] ) then
+        EntLookup[ self ]:SetPos( env.VecLookup[ vec ] )
+    end
 end
 
+function EntityProxy:AlignAngles( from , to )
+    if check( ply , EntLookup[ self ] ) then
+        EntLookup[ self ]:AlignAngles( env.AngLookup[ from ] , env.AngLookup[ to ] )
+    end
+end
+
+function EntityProxy:Remove()
+    return EntLookup[ self ]:Remove()
+end
+
+function EntityProxy:FollowBone( ent , boneid )
+    ent = EntLookup[ ent ]
+    if check( ply , ent ) and check( ply , EntLookup[ self ] ) then
+        EntLookup[ self ]:FollowBone( ent , boneid )
+    end
+end
+
+--[[
 function EntityProxy:
     return EntLookup[ self ]:
 end
