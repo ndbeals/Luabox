@@ -10,6 +10,8 @@ function PANEL:Init()
 	self.Rows = {}
 	self.RowColors = {}
 
+	self:AddRow( "" )
+
     --self:SetCursorColor( Color( 0 , 0 , 0 , 0 ) )
 end
 

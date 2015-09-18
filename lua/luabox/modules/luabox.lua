@@ -22,16 +22,15 @@ print = function(...)
 end
 
 Colors = {
-    Gray        = Color (0x80, 0x80, 0x80, 0xFF),
-    DarkGray    = Color (0xA9, 0xA9, 0xA9, 0xFF),
-    LightGray   = Color (0xD3, 0xD3, 0xD3, 0xFF),
-    --Gray707070  = Color (0x70, 0x70, 0x70, 0xFF),
-	Outline     = Color ( 59 , 59 , 59 ),
-	FillerGray  = Color ( 157 , 161 , 165 ),
-	Black 		= Color (0x00, 0x00, 0x00, 0xFF),
-	White		= Color ( 255 , 255 , 255 , 255),
-	BorderGray	= Color ( 112 , 112 , 112 , 255),
-	Line		= Color ( 91 , 96 , 100 , 255 ),
+	Gray = Color(0x80, 0x80, 0x80, 0xFF),
+	DarkGray = Color(0xA9, 0xA9, 0xA9, 0xFF),
+	LightGray = Color(0xD3, 0xD3, 0xD3, 0xFF),
+	Outline = Color(59, 59, 59),
+	FillerGray = Color(157, 161, 165),
+	Black = Color(0x00, 0x00, 0x00, 0xFF),
+	White = Color(255, 255, 255, 255),
+	BorderGray = Color(112, 112, 112, 255),
+	Line = Color(91, 96, 100, 255)
 }
 
 --- Get Player Container.
@@ -499,7 +498,7 @@ end
 function Networker:WriteNumber( num , size )
 	size = size or 32
 
-	self:AddToBuffer( { net.WriteInt , num , size , Size = size/8 } )
+	self:AddToBuffer( { net.WriteInt , num , size , Size = size / 8 } )
 end
 
 --- Write Unsigned Number.
@@ -509,7 +508,7 @@ end
 function Networker:WriteUNumber( num , size )
 	size = size or 32
 
-	self:AddToBuffer( { net.WriteUInt , num , size , Size = size/8 } )
+	self:AddToBuffer( { net.WriteUInt , num , size , Size = size / 8 } )
 end
 
 --- Write Angle.
@@ -838,10 +837,10 @@ end
 
 function Networker:Send()
 	if not self:SendBatch() then
-		hook.Add( "Think" , "Luabox_NetworkThink:"..tostring( self ) , function()
+		hook.Add( "Think" , "Luabox_NetworkThink:" .. tostring( self ) , function()
 			if self.SendBuffer[1] then
 				if self:SendBatch() then
-					hook.Remove( "Think" , "Luabox_NetworkThink:"..tostring( self ) )
+					hook.Remove( "Think" , "Luabox_NetworkThink:" .. tostring( self ) )
 
 					self:FinishSend()
 				end
@@ -1203,14 +1202,14 @@ hooke.Call = function( name, gm, ... )
 
 			if env[name] then
 				--print("trying")
-				retvalues = container:RunSandboxFunction( env[name] , env , ... )--{ pcall( env[name] , env , ... ) }
+				retvalues = container:RunSandboxFunction( env[name] , env , ... ) --{ pcall( env[name] , env , ... ) }
 
 
 				if ( retvalues[1] and retvalues[2] != nil ) then
 
 					--table.remove( retvalues, 1 )
 					return unpack( retvalues , 2 )
-				elseif ( !retvalues[1] ) then
+				elseif ( not retvalues[1] ) then
 					print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
 					--print(unpack(retvalues,2) )
 					print(retvalues[2])
@@ -1373,13 +1372,20 @@ function FileSystem:AddFile( name )
 	if not name then return false end
 	if self:GetSingleFile() then return false end
 
-	name = name .. ".txt"
+	if not (string.GetExtensionFromFilename( name ) == "txt") then
+		name = name .. ".txt"
+	end
+
+
+	local file = File( self:GetPath() .. "/" .. name , self )
 
 	file.Write( self:GetPath() .. "/" .. name , "" )
 
-	table.insert( self.Files , File( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+	table.insert( self.Files , file )
 
 	self:GetRootFileSystem():Refresh( true )
+
+	return file
 end
 
 function FileSystem:AddDirectory( name )
@@ -1388,11 +1394,15 @@ function FileSystem:AddDirectory( name )
 
 	--name = name .. ".txt"
 
+	local directory = FileSystem( self:GetPath() .. "/" .. name , self) )
+
 	file.CreateDir( self:GetPath() .. "/" .. name )
 
-	table.insert( self.Directories , FileSystem( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+	table.insert( self.Directories , directory )
 
 	self:GetRootFileSystem():Refresh( true )
+
+	return directory
 end
 
 function FileSystem:Build()
@@ -1531,6 +1541,10 @@ function File:Move( destfs )
 	file.Delete( self:GetPath() )
 	self:SetPath( destfs:GetPath() .. "/" .. self:GetShortPath() )
 	return true
+end
+
+function File:Write( str )
+	file.Write( self:GetPath() , str )
 end
 
 function File:Read()

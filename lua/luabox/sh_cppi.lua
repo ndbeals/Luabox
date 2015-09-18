@@ -59,7 +59,7 @@ if CPPI then --check cppi if it exists
         return luabox.IsFriend( player , luabox.GetOwner( entity ) )
     end
 
-    else -- if no CPPI then just allow everything
+else -- if no CPPI then just allow everything
 
 
     function luabox.GetOwner( ent )

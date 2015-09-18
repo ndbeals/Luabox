@@ -45,7 +45,7 @@ function PANEL:Paint( w , h )
     draw.RoundedBox( 2 , 1 , 1 , w - 2 , h - 2 , colors.FillerGray )
 
 
-    surface.SetDrawColor (GLib.Colors.LightGray)
+    surface.SetDrawColor (luabox.Colors.LightGray)
 	if self.Orientation == 1 then
 		local x = math.floor (w * 0.5 - 1)
 		for y = h * 0.5 - 6, h * 0.5 + 6, 2 do

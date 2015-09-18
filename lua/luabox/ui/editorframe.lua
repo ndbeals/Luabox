@@ -13,11 +13,11 @@ function PANEL:Init()
 	self.Container = luabox.PlayerContainer()
 	self.HotKeyTime = FrameNumber()
 
-    self:SetMinWidth( 350 )
-    self:SetMinHeight( 150 )
-	self:SetSizable( true )
-	self:SetDraggable( true )
-	self:SetTitle( "Luabox Editor" )
+	self:SetMinWidth(350)
+	self:SetMinHeight(150)
+	self:SetSizable(true)
+	self:SetDraggable(true)
+	self:SetTitle("Luabox Editor")
 
 
 	self.btnMaxim:SetDisabled( false )
@@ -51,130 +51,175 @@ function PANEL:Init()
 		self:Hide()
 	end
 
-    self.Menu = vgui.Create( "DMenuBar" , self )
-    self.Menus = self.Menu.Menus
-    self.Menu:Dock(NODOCK)
-	self.Menu.OnKeyCodePressed = function( self , code )
-	    if self:GetParent().OnKeyCodePressed then
-	        self:GetParent():OnKeyCodePressed( code )
-	    end
+	self.Menu = vgui.Create( "DMenuBar", self )
+	self.Menus = self.Menu.Menus
+	self.Menu:Dock(NODOCK)
+
+	self.Menu.OnKeyCodePressed = function( self, code )
+		if self:GetParent().OnKeyCodePressed then
+			self:GetParent():OnKeyCodePressed(code)
+		end
 	end
 
-    self:SetupFileMenu()
-    self:DockPadding( spacing / 2 , (spacing / 2) + 24 + self.Menu:GetTall() , spacing / 2 , spacing / 2 )
+	self:SetupFileMenu()
 
-    self:SetupProjectTree()
+	self:DockPadding(spacing / 2, (spacing / 2) + 24 + self.Menu:GetTall(), spacing / 2, spacing / 2)
 
-    self:SetupAreas()
+	self:SetupProjectTree()
 
-    self:SetupEditMenu()
+	self:SetupAreas()
 
-    self:SetupViewMenu()
+	self:SetupEditMenu()
 
-    self:SetupToolsMenu()
+	self:SetupViewMenu()
 
-    self:SetupHelpMenu()
+	self:SetupToolsMenu()
 
-    self:SetupEditorSheet()
+	self:SetupHelpMenu()
 
-    self:SetupOutput()
+	self:SetupEditorSheet()
+
+	self:SetupOutput()
 
 	self:SetupSplitters()
 
-
-	if not self:LoadSettings() then self:DefaultSettings() end
+	if not self:LoadSettings() then
+		self:DefaultSettings()
+	end
 end
 
 function PANEL:SetupFileMenu()
-    self.Menu:AddMenu("File")
+	self.Menu:AddMenu("File")
 
-    self.Menus.File:AddOption( "New" , function() self:AddEditorTab() end ):SetIcon( "icon16/page_white_add.png" )
+	self.Menus.File:AddOption("New", function()
+		self:AddEditorTab()
+	end):SetIcon("icon16/page_white_add.png")
 
-    self.Menus.File:AddOption( "Open" , function() print("saved") end ):SetIcon( "icon16/folder_page.png" )
+	self.Menus.File:AddOption("Open", function()
+		local filemanager = vgui.Create( "Luabox_File_Manager" )
+		filemanager:SetMode( "open" , function( fs )
+			self:OpenFile( fs )
+		end)
 
-    self.Menus.File:AddOption( "Save" , function() print("saved") end ):SetIcon( "icon16/disk.png" )
+		filemanager:MakePopup()
+	end):SetIcon("icon16/folder_page.png")
 
-    self.Menus.File:AddOption( "Save As..." , function() print("saved") end ):SetIcon( "icon16/disk.png" )
+	self.Menus.File:AddOption("Save", function()
+		print("saved")
+	end):SetIcon("icon16/disk.png")
 
-    self.Menus.File:AddOption( "Save All" , function() print("saved") end ):SetIcon( "icon16/disk_multiple.png" )
+	self.Menus.File:AddOption("Save As...", function()
+		local filemanager = vgui.Create( "Luabox_File_Manager" )
+		filemanager:SetMode( "save" , function( fs , path)
+			if not (string.GetExtensionFromFilename( path ) == "txt" ) then
+				print "ASFASFADSGSDG"
+				path = path .. ".txt"
+			end
+			print("AS",fs:GetPath(),fs:GetSingleFile(),path,string.GetExtensionFromFilename( path )=="txt")
+			if fs then
+				local contents = self:GetTabContents()
+				--print("haha",contents)
+				if fs:GetSingleFile() then
+					fs:Write( contents )
+				else
+					local newfs = fs:AddFile( path )
+					print("NESTFS",newfs)
+					--newfs:Write( contents )
 
-    self.Menus.File:AddOption( "Close" , function() self:RemoveEditorTab() end ):SetIcon( "icon16/delete.png" )
+				end
+			end
+		end)
+
+		filemanager:MakePopup()
+	end):SetIcon("icon16/disk.png")
+
+	self.Menus.File:AddOption("Save All", function()
+		print("saved")
+	end):SetIcon("icon16/disk_multiple.png")
+
+	self.Menus.File:AddOption("Close", function()
+		self:RemoveEditorTab()
+	end):SetIcon("icon16/delete.png")
 
 	self.Menus.File:AddSpacer()
 
-    self.Menus.File:AddOption( "Exit" , function() self:Close() end ):SetIcon("icon16/cross.png")
+	self.Menus.File:AddOption("Exit", function()
+		self:Close()
+	end):SetIcon("icon16/cross.png")
 end
 
 function PANEL:SetupEditMenu()
-    self.Menu:AddMenu("Edit")
+	self.Menu:AddMenu("Edit")
 
-	self.Menus.Edit:AddOption( "Undo" , function()
+	self.Menus.Edit:AddOption("Undo", function()
 		if self:GetActiveEditor() then
 			self:GetActiveEditor():DoUndo()
 		end
-	end ):SetIcon( "icon16/arrow_undo.png" )
+	end):SetIcon("icon16/arrow_undo.png")
 
-	self.Menus.Edit:AddOption( "Redo" , function()
+	self.Menus.Edit:AddOption("Redo", function()
 		if self:GetActiveEditor() then
 			self:GetActiveEditor():DoRedo()
 		end
-	end ):SetIcon( "icon16/arrow_redo.png" )
+	end):SetIcon("icon16/arrow_redo.png")
 
 	self.Menus.Edit:AddSpacer()
 
-    self.Menus.Edit:AddOption( "Cut" , function()
+	self.Menus.Edit:AddOption("Cut", function()
 		if self:GetActiveEditor() then
 			self:GetActiveEditor():Cut()
 		end
-	end ):SetIcon( "icon16/page_white_add.png" )
+	end):SetIcon("icon16/page_white_add.png")
 
-    self.Menus.Edit:AddOption( "Copy" , function()
+	self.Menus.Edit:AddOption("Copy", function()
 		if self:GetActiveEditor() then
 			self:GetActiveEditor():Copy()
 		end
-	end ):SetIcon( "icon16/folder_page.png" )
+	end):SetIcon("icon16/folder_page.png")
 
-    self.Menus.Edit:AddOption( "Paste" , function()
+	self.Menus.Edit:AddOption("Paste", function()
 		if self:GetActiveEditor() then
 			self:GetActiveEditor():Paste()
 		end
-	end ):SetIcon( "icon16/disk.png" )
+	end):SetIcon("icon16/disk.png")
 end
 
 function PANEL:SetupViewMenu()
-    self.Menu:AddMenu("View")
-
+	self.Menu:AddMenu( "View" )
 	self.Menus.View.FileBrowser = self.Menus.View:AddOption( "File Browser" )
 	self.Menus.View.FileBrowser:SetIcon( "icon16/folder.png" )
 	self.Menus.View.FileBrowser:SetIsCheckable( true )
 
-	self.Menus.View.FileBrowser.OnChecked = function( option , checked)
+	self.Menus.View.FileBrowser.OnChecked = function( option , checked )
 		if checked then
-			self:ShowProjectTree()
+			self:ShowProjectTree( )
 		else
-			self:HideProjectTree()
+			self:HideProjectTree( )
 		end
 	end
 
-	self.Menus.View.FileBrowser.PaintOver = function( option , w , h )
-		if option:GetChecked() then
+	self.Menus.View.FileBrowser.PaintOver = function( option )
+		if option:GetChecked( ) then
 			option.Hovered = true
 		end
 	end
 
-	self.Menus.View.Output = self.Menus.View:AddOption( "Output" , function() print("saved") end )
+	self.Menus.View.Output = self.Menus.View:AddOption( "Output", function( )
+		print( "saved" )
+	end )
+
 	self.Menus.View.Output:SetIcon( "icon16/application_xp_terminal.png" )
 	self.Menus.View.Output:SetIsCheckable( true )
 
-	self.Menus.View.Output.OnChecked = function( option , checked)
+	self.Menus.View.Output.OnChecked = function( option, checked )
 		if checked then
-			self:ShowOutput()
+			self:ShowOutput( )
 		else
-			self:HideOutput()
+			self:HideOutput( )
 		end
 	end
 
-	self.Menus.View.Output.PaintOver = function( option , w , h )
+	self.Menus.View.Output.PaintOver = function( option )
 		if option:GetChecked() then
 			option.Hovered = true
 		end
@@ -182,108 +227,109 @@ function PANEL:SetupViewMenu()
 end
 
 function PANEL:SetupToolsMenu()
-    self.Menu:AddMenu("Tools")
+	self.Menu:AddMenu( "Tools" )
 
-    local reset = self.Menus.Tools:AddOption( "Reset Editor Settings" , function()
-		self:DefaultSettings()
+	local reset = self.Menus.Tools:AddOption( "Reset Editor Settings", function( )
+		self:DefaultSettings( )
 		file.Delete( "luabox_editor_settings.txt" )
 	end )
 	reset:SetIcon( "icon16/exclamation.png" )
-	reset:SetToolTip( "Deletes the settings file and applies the default settings to the editor" )
+	reset:SetTooltip( "Deletes the settings file and applies the default settings to the editor" )
 
 	self.Menus.Tools.TildeIgnore = self.Menus.Tools:AddOption( "Ignore Tilde (console button)" )
 	--tildeignore:SetIcon( "icon16/application_xp_terminal.png" )
 	self.Menus.Tools.TildeIgnore:SetIsCheckable( true )
-	self.Menus.Tools.TildeIgnore.OnChecked = function( option , checked )
-		for k , v in pairs( self.Editors ) do
+
+	self.Menus.Tools.TildeIgnore.OnChecked = function( option, checked )
+		for k, v in pairs(self.Editors) do
 			if v.Panel then
-				v.Panel:SetIgnoreTilde( checked )
+				v.Panel:SetIgnoreTilde(checked)
 			end
 		end
 	end
 
-	self.Menus.Tools.TildeIgnore.PaintOver = function( option , w , h )
-		if option:GetChecked() then
+	self.Menus.Tools.TildeIgnore.PaintOver = function( option )
+		if option:GetChecked( ) then
 			option.Hovered = true
 		end
 	end
 end
 
 function PANEL:SetupHelpMenu()
-    self.Menu:AddMenu("Help")
-    --[[
-    self.Menus.Help:AddOption( "New" , function() print("saved") end ):SetIcon( "icon16/page_white_add.png" )
+	self.Menu:AddMenu("Help")
+	--[[
+	self.Menus.Help:AddOption( "New" , function() print("saved") end ):SetIcon( "icon16/page_white_add.png" )
 
-    self.Menus.Help:AddOption( "Open" , function() print("saved") end ):SetIcon( "icon16/folder_page.png" )
+	self.Menus.Help:AddOption( "Open" , function() print("saved") end ):SetIcon( "icon16/folder_page.png" )
 
-    self.Menus.Help:AddOption( "Save" , function() print("saved") end ):SetIcon( "icon16/disk.png" )
+	self.Menus.Help:AddOption( "Save" , function() print("saved") end ):SetIcon( "icon16/disk.png" )
 
-    self.Menus.Help:AddOption( "Save As..." , function() print("saved") end ):SetIcon( "icon16/disk.png" )
+	self.Menus.Help:AddOption( "Save As..." , function() print("saved") end ):SetIcon( "icon16/disk.png" )
 
-    self.Menus.Help:AddOption( "Save All" , function() print("saved") end ):SetIcon( "icon16/disk_multiple.png" )
+	self.Menus.Help:AddOption( "Save All" , function() print("saved") end ):SetIcon( "icon16/disk_multiple.png" )
 
-    self.Menus.Help:AddOption( "Close" , function() print("saved") end ):SetIcon("icon16/circlecross.png")
+	self.Menus.Help:AddOption( "Close" , function() print("saved") end ):SetIcon("icon16/circlecross.png")
 
-    self.Menus.Help:AddOption( "Exit" , function() print("saved") end ):SetIcon("icon16/cross.png")
-    --]]
+	self.Menus.Help:AddOption( "Exit" , function() print("saved") end ):SetIcon("icon16/cross.png")
+	--]]
 end
 
-function PANEL:SetupProjectTree()
-    self.ProjectTree = vgui.Create( "Luabox_File_Tree" , self )
-    self.ProjectTree:DockMargin( spacing / 2 , spacing / 2 - 1 , spacing * 1.5 , spacing / 2 )
-    self.ProjectTree:Dock(LEFT)
+function PANEL:SetupProjectTree( )
+	self.ProjectTree = vgui.Create( "Luabox_File_Tree", self )
+	self.ProjectTree:DockMargin( spacing / 2, spacing / 2 - 1, spacing * 1.5, spacing / 2 )
+	self.ProjectTree:Dock( LEFT )
+	self.ProjectTree.DoClick = function( tree , but ) end
 
-	self.ProjectTree.DoClick = function( tree , but )
-		--print("projectree" , tree , but , tree == but )
-	end
-
-	self.ProjectTree.DoBaseRightClick = function( tree )
+	--print("projectree" , tree , but , tree == but )
+	self.ProjectTree.DoBaseRightClick = function(tree)
 		local menu = DermaMenu()
 
-        if self.FileMove then
-            menu:AddOption( "Move Here" , function() self:FinishFileMove( tree:GetFileSystem() ) end ):SetIcon( "icon16/arrow_down.png" )
+		if self.FileMove then
+			menu:AddOption("Move Here", function()
+				self:FinishFileMove(tree:GetFileSystem())
+			end):SetIcon("icon16/arrow_down.png")
 
-            menu:AddSpacer()
+			menu:AddSpacer()
 
-            menu:AddOption( "Cancel" , function()
-                self.FileCopy = nil
-                self.FileMove = nil
-            end ):SetIcon( "icon16/cancel.png" )
-        elseif self.FileCopy then
-            menu:AddOption( "Copy Here" , function() self:FinishFileCopy( tree:GetFileSystem() ) end):SetIcon( "icon16/arrow_down.png" )
+			menu:AddOption("Cancel", function()
+				self.FileCopy = nil
+				self.FileMove = nil
+			end):SetIcon("icon16/cancel.png")
+		elseif self.FileCopy then
+			menu:AddOption("Copy Here", function()
+				self:FinishFileCopy(tree:GetFileSystem())
+			end):SetIcon("icon16/arrow_down.png")
 
-            menu:AddSpacer()
+			menu:AddSpacer()
 
-            menu:AddOption( "Cancel" , function()
-                self.FileCopy = nil
-                self.FileMove = nil
-            end ):SetIcon( "icon16/cancel.png" )
-        else
-			menu:AddOption( "New File" , function()
-	            Derma_StringRequest( "New File" , "Name the new file." , "new" , function( input )
-	                tree:GetFileSystem():AddFile( input )
+			menu:AddOption("Cancel", function()
+				self.FileCopy = nil
+				self.FileMove = nil
+			end):SetIcon("icon16/cancel.png")
+		else
+			menu:AddOption("New File", function()
+				Derma_StringRequest("New File", "Name the new file.", "new", function(input)
+					tree:GetFileSystem():AddFile(input)
+					self:RefreshProjectTree()
+				end)
+			end):SetIcon("icon16/page_white_add.png")
 
-	                self:RefreshProjectTree()
-	            end)
-	        end ):SetIcon( "icon16/page_white_add.png" )
-
-	        menu:AddOption( "New Directory" , function()
-	            Derma_StringRequest( "New Directory" , "Name the new directory." , "new" , function( input )
-	                tree:GetFileSystem():AddDirectory( input )
-
-	                self:RefreshProjectTree()
-	            end)
-	        end ):SetIcon( "icon16/folder_add.png" )
+			menu:AddOption("New Directory", function()
+				Derma_StringRequest("New Directory", "Name the new directory.", "new", function(input)
+					tree:GetFileSystem():AddDirectory(input)
+					self:RefreshProjectTree()
+				end)
+			end):SetIcon("icon16/folder_add.png")
 		end
 
-		local x , y = tree:LocalToScreen( 0 , 0 )--gui.MouseX() ,
+		local x, y = tree:LocalToScreen(0, 0)
+		--gui.MouseX() ,
 		y = gui.MouseY()
-		menu:Open( x + tree:GetIndentSize() , y )
+		menu:Open(x + tree:GetIndentSize(), y)
 	end
 
-	self.Container:GetFileSystem():Refresh( true )
-	self.ProjectTree:SetFileSystem( self.Container:GetFileSystem() )
-
+	self.Container:GetFileSystem():Refresh(true)
+	self.ProjectTree:SetFileSystem(self.Container:GetFileSystem())
 	self:SetupProjectTreeButtons()
 end
 
@@ -317,101 +363,101 @@ end
 function PANEL:SetupProjectTreeButtons( pnl )
 	pnl = pnl or self.ProjectTree
 
-    if pnl.Files then
-    	for i , v in ipairs( pnl.Files ) do
-    		v:SetDoubleClickToOpen( false )
+	if pnl.Files then
+		for i , v in ipairs( pnl.Files ) do
+			v:SetDoubleClickToOpen( false )
 
-            v.DoClick = function( but )
-                if but.Selected then
-                    but:GetRoot():SetSelectedItem( nil )
-                    but.Selected = false
-                else
-                    but.Selected = true
+			v.DoClick = function( but )
+				if but.Selected then
+					but:GetRoot():SetSelectedItem( nil )
+					but.Selected = false
+				else
+					but.Selected = true
 					but:GetRoot():SetSelectedItem( but )
-                end
-            end
+				end
+			end
 
-    		v.DoDoubleClick = function( but )
-    			self:OpenFile( but:GetFileSystem() )
-    		end
+			v.DoDoubleClick = function( but )
+				self:OpenFile( but:GetFileSystem() )
+			end
 
-    		v.DoRightClick = function( but )
-    			but:GetRoot():SetSelectedItem( but )
-    			local menu = DermaMenu()
+			v.DoRightClick = function( but )
+				but:GetRoot():SetSelectedItem( but )
+				local menu = DermaMenu()
 
-                if self.FileMove or self.FileCopy then
-                    menu:AddOption( "Cancel" , function()
-                        self.FileCopy = nil
-                        self.FileMove = nil
-                    end ):SetIcon( "icon16/cancel.png" )
-                else
-        			menu:AddOption( "Open" , function() self:OpenFile( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_page.png")
+				if self.FileMove or self.FileCopy then
+					menu:AddOption( "Cancel" , function()
+						self.FileCopy = nil
+						self.FileMove = nil
+					end ):SetIcon( "icon16/cancel.png" )
+				else
+					menu:AddOption( "Open" , function() self:OpenFile( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_page.png")
 
-        			menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/page_white_go.png")
+					menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/page_white_go.png")
 
-                    menu:AddOption( "Copy" , function() self:StartFileCopy( but:GetFileSystem() ) end):SetIcon( "icon16/page_white_copy.png" )
+					menu:AddOption( "Copy" , function() self:StartFileCopy( but:GetFileSystem() ) end):SetIcon( "icon16/page_white_copy.png" )
 
-                    menu:AddSpacer()
+					menu:AddSpacer()
 
-                    menu:AddOption( "Delete" , function() but:GetFileSystem():Delete() end):SetIcon( "icon16/page_white_delete.png" )
-                end
+					menu:AddOption( "Delete" , function() but:GetFileSystem():Delete() end):SetIcon( "icon16/page_white_delete.png" )
+				end
 
-    			local x , y = but:LocalToScreen( 0 , 0 )
-    			menu:Open( x + but:GetIndentSize() + 8 , y + but:GetTall() )
-    		end
-    	end
-    end
+				local x , y = but:LocalToScreen( 0 , 0 )
+				menu:Open( x + but:GetIndentSize() + 8 , y + but:GetTall() )
+			end
+		end
+	end
 
-    if pnl.Directories then
-    	for i , v in ipairs( pnl.Directories ) do
-    		v.DoClick = function( but )
-                if but.Selected then
-                    but:GetRoot():SetSelectedItem( nil )
-                    but.Selected = false
-                else
-                    but:GetRoot():SetSelectedItem( but )
-                    but.Selected = true
-                end
-                return true
-    		end
+	if pnl.Directories then
+		for i , v in ipairs( pnl.Directories ) do
+			v.DoClick = function( but )
+				if but.Selected then
+					but:GetRoot():SetSelectedItem( nil )
+					but.Selected = false
+				else
+					but:GetRoot():SetSelectedItem( but )
+					but.Selected = true
+				end
+				return true
+			end
 
-            v.DoDoubleClick = function( but )
-                if #but.ChildNodes:GetChildren() < 1 then
-                    return true
-                end
-            end
+			v.DoDoubleClick = function( but )
+				if #but.ChildNodes:GetChildren() < 1 then
+					return true
+				end
+			end
 
-    		v.DoRightClick = function( but )
-    			but:GetRoot():SetSelectedItem( but )
-    			local menu = DermaMenu()
+			v.DoRightClick = function( but )
+				but:GetRoot():SetSelectedItem( but )
+				local menu = DermaMenu()
 
-    			if self.FileMove then
-    				menu:AddOption( "Move Here" , function()
+				if self.FileMove then
+					menu:AddOption( "Move Here" , function()
 						self:FinishFileMove( but:GetFileSystem() )
 
 						but:SetExpanded( true , true )
 					end ):SetIcon( "icon16/arrow_down.png" )
 
-                    menu:AddSpacer()
+					menu:AddSpacer()
 
-                    menu:AddOption( "Cancel" , function()
-                        self.FileCopy = nil
-                        self.FileMove = nil
-                    end ):SetIcon( "icon16/cancel.png" )
-                elseif self.FileCopy then
-                    menu:AddOption( "Copy Here" , function()
+					menu:AddOption( "Cancel" , function()
+						self.FileCopy = nil
+						self.FileMove = nil
+					end ):SetIcon( "icon16/cancel.png" )
+				elseif self.FileCopy then
+					menu:AddOption( "Copy Here" , function()
 						self:FinishFileCopy( but:GetFileSystem() )
 
 						but:SetExpanded( true , true )
 					end):SetIcon( "icon16/arrow_down.png" )
 
-                    menu:AddSpacer()
+					menu:AddSpacer()
 
-                    menu:AddOption( "Cancel" , function()
-                        self.FileCopy = nil
-                        self.FileMove = nil
-                    end ):SetIcon( "icon16/cancel.png" )
-    			else
+					menu:AddOption( "Cancel" , function()
+						self.FileCopy = nil
+						self.FileMove = nil
+					end ):SetIcon( "icon16/cancel.png" )
+				else
 					menu:AddOption( "New File" , function()
 						Derma_StringRequest( "New File" , "Name the new file." , "new" , function( input )
 							but:GetFileSystem():AddFile( input )
@@ -436,30 +482,30 @@ function PANEL:SetupProjectTreeButtons( pnl )
 
 					menu:AddSpacer()
 
-    				menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_go.png")
+					menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_go.png")
 
 					menu:AddOption( "Copy" , function() self:StartFileCopy( but:GetFileSystem() ) end):SetIcon( "icon16/page_white_copy.png" )
 
-                    menu:AddSpacer()
+					menu:AddSpacer()
 
-                    menu:AddOption( "Delete" , function()
-                        but:GetFileSystem():Delete()
-                        self:RefreshProjectTree()
-                    end):SetIcon( "icon16/folder_delete.png" )
-    			end
+					menu:AddOption( "Delete" , function()
+						but:GetFileSystem():Delete()
+						self:RefreshProjectTree()
+					end):SetIcon( "icon16/folder_delete.png" )
+				end
 
-    			local x , y = but:LocalToScreen( 0 , 0 )
-    			menu:Open( x + but:GetIndentSize() + 8 , y + 17 )
-    		end
+				local x , y = but:LocalToScreen( 0 , 0 )
+				menu:Open( x + but:GetIndentSize() + 8 , y + 17 )
+			end
 
-    		self:SetupProjectTreeButtons( v )
-    	end
-    end
+			self:SetupProjectTreeButtons( v )
+		end
+	end
 end
 
 function PANEL:StartFileMove( fs )
 	self.FileMove = fs
-    self.FileCopy = nil
+	self.FileCopy = nil
 end
 
 function PANEL:FinishFileMove( fs )
@@ -472,7 +518,7 @@ end
 
 function PANEL:StartFileCopy( fs )
 	self.FileCopy = fs
-    self.FileMove = nil
+	self.FileMove = nil
 end
 
 function PANEL:FinishFileCopy( fs )
@@ -484,39 +530,39 @@ function PANEL:FinishFileCopy( fs )
 end
 
 function PANEL:SetupAreas()
-    self.EditorArea = vgui.Create( "DPanel" , self )
-    self.EditorArea:SetPaintBackground( false )
-    self.EditorArea:DockMargin( 0 , 0 , 0 , 0 )
-    self.EditorArea:Dock(FILL)
+	self.EditorArea = vgui.Create( "DPanel" , self )
+	self.EditorArea:SetPaintBackground( false )
+	self.EditorArea:DockMargin( 0 , 0 , 0 , 0 )
+	self.EditorArea:Dock(FILL)
 	self.EditorArea.OnKeyCodePressed = function( self , code )
-	    if self:GetParent().OnKeyCodePressed then
-	        self:GetParent():OnKeyCodePressed( code )
-	    end
+		if self:GetParent().OnKeyCodePressed then
+			self:GetParent():OnKeyCodePressed( code )
+		end
 	end
 
-    self.OutputArea = vgui.Create( "DPanel" , self.EditorArea )
-    self.OutputArea:DockMargin( spacing / 2 , spacing , spacing / 2 , spacing / 2 )
-    self.OutputArea:Dock(BOTTOM)
-    self.OutputArea.Paint = function( pnl , w , h )
+	self.OutputArea = vgui.Create( "DPanel" , self.EditorArea )
+	self.OutputArea:DockMargin( spacing / 2 , spacing , spacing / 2 , spacing / 2 )
+	self.OutputArea:Dock(BOTTOM)
+	self.OutputArea.Paint = function( pnl , w , h )
 		draw.RoundedBox( 4 , 0 , 0 , w , h , luabox.Colors.Outline )
 		draw.RoundedBox( 4 , 1 , 1 , w - 2 , h - 2 , luabox.Colors.FillerGray )
-    end
+	end
 
 	self.OutputArea.OnKeyCodePressed = function( self , code )
-	    if self:GetParent().OnKeyCodePressed then
-	        self:GetParent():OnKeyCodePressed( code )
-	    end
+		if self:GetParent().OnKeyCodePressed then
+			self:GetParent():OnKeyCodePressed( code )
+		end
 	end
 end
 
 function PANEL:SetupSplitters()
-    self.FileSplitter = vgui.Create( "Luabox_Splitter" , self )
-    self.FileSplitter:SetOrientation( 1 )
+	self.FileSplitter = vgui.Create( "Luabox_Splitter" , self )
+	self.FileSplitter:SetOrientation( 1 )
 	self.FileSplitter:SetWide(8)
-    self.FileSplitter:DockMargin( -spacing *1.5 , spacing / 2 , -spacing / 2 , spacing / 2 )
-    self.FileSplitter:Dock(LEFT)
-    self.FileSplitter:SetPanel1( self.ProjectTree )
-    self.FileSplitter:SetPanel2( self.EditorArea )
+	self.FileSplitter:DockMargin( -spacing * 1.5, spacing / 2, -spacing / 2, spacing / 2 )
+	self.FileSplitter:Dock(LEFT)
+	self.FileSplitter:SetPanel1( self.ProjectTree )
+	self.FileSplitter:SetPanel2( self.EditorArea )
 
 	self.EditorSplitter = vgui.Create( "Luabox_Splitter" , self.EditorArea )
 	self.EditorSplitter:DockMargin( spacing / 2 , -spacing , spacing / 2 , -spacing )
@@ -527,13 +573,11 @@ function PANEL:SetupSplitters()
 end
 
 function PANEL:SetupOutput()
-    self.Output = vgui.Create( "Luabox_Console_Output" , self.OutputArea )
-    --self.Output:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing / 2 )
-    self.Output:DockMargin( spacing , spacing , spacing , spacing )
-    self.Output:Dock(FILL)
+	self.Output = vgui.Create( "Luabox_Console_Output" , self.OutputArea )
+	--self.Output:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing / 2 )
+	self.Output:DockMargin( spacing , spacing , spacing , spacing )
+	self.Output:Dock(FILL)
 	--self.Output:SetTall(100)
-
-	self.Output:AddRow( "function test() end" , Color(255,0,0) , "heru," ,"test2", "blacklin" , Color(0,255,0) )
 end
 
 function PANEL:HideOutput()
@@ -559,68 +603,68 @@ function PANEL:ShowOutput()
 end
 
 function PANEL:SetupEditorSheet()
-    self.EditorSheet = vgui.Create( "DPropertySheet" , self.EditorArea )
-    self.EditorSheet:SetPadding( spacing )
-    self.EditorSheet:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing )
-    self.EditorSheet:Dock(FILL)
-    self.EditorSheet:SetFadeTime(0)
+	self.EditorSheet = vgui.Create( "DPropertySheet" , self.EditorArea )
+	self.EditorSheet:SetPadding( spacing )
+	self.EditorSheet:DockMargin( spacing / 2 , spacing / 2 , spacing / 2 , spacing )
+	self.EditorSheet:Dock(FILL)
+	self.EditorSheet:SetFadeTime(0)
 
 	self.EditorSheet.OnKeyCodePressed = function( self , code )
-	    if self:GetParent().OnKeyCodePressed then
-	        self:GetParent():OnKeyCodePressed( code )
-	    end
+		if self:GetParent().OnKeyCodePressed then
+			self:GetParent():OnKeyCodePressed( code )
+		end
 	end
 
 
-    self.EditorSheet.tabScroller:SetOverlap( 2 )
+	self.EditorSheet.tabScroller:SetOverlap( 2 )
 
-    self.EditorSheet.tabScroller.PerformLayout = function( self , w , h )
+	self.EditorSheet.tabScroller.PerformLayout = function( self , w , h )
 
-    	local w, h = self:GetSize()
+		local w , h = self:GetSize( )
 
-    	self.pnlCanvas:SetTall( h )
+		self.pnlCanvas:SetTall( h )
 
-    	local x = 0
+		local x = 0
 
-    	for k, v in pairs( self.Panels ) do
+		for k, v in pairs( self.Panels ) do
 
-    		v:SetPos( x + 2 , 0 )
-    		v:SetTall( h )
-    		v:ApplySchemeSettings()
+			v:SetPos( x + 2 , 0 )
+			v:SetTall( h )
+			v:ApplySchemeSettings()
 
-    		x = x + v:GetWide() - self.m_iOverlap
+			x = x + v:GetWide() - self.m_iOverlap
 
-    	end
+		end
 
-    	self.pnlCanvas:SetWide( x + self.m_iOverlap + 2 )
+		self.pnlCanvas:SetWide( x + self.m_iOverlap + 2 )
 
-    	if ( w < self.pnlCanvas:GetWide() ) then
-    		self.OffsetX = math.Clamp( self.OffsetX, 0, self.pnlCanvas:GetWide() - self:GetWide() )
-    	else
-    		self.OffsetX = 0
-    	end
+		if ( w < self.pnlCanvas:GetWide() ) then
+			self.OffsetX = math.Clamp( self.OffsetX, 0, self.pnlCanvas:GetWide() - self:GetWide() )
+		else
+			self.OffsetX = 0
+		end
 
-    	self.pnlCanvas.x = self.OffsetX * -1
+		self.pnlCanvas.x = self.OffsetX * -1
 
-    	self.btnLeft:SetSize( 15, 15 )
-    	self.btnLeft:AlignLeft( 4 )
-    	self.btnLeft:AlignBottom( 5 )
+		self.btnLeft:SetSize( 15, 15 )
+		self.btnLeft:AlignLeft( 4 )
+		self.btnLeft:AlignBottom( 5 )
 
-    	self.btnRight:SetSize( 15, 15 )
-    	self.btnRight:AlignRight( 4 )
-    	self.btnRight:AlignBottom( 5 )
+		self.btnRight:SetSize( 15, 15 )
+		self.btnRight:AlignRight( 4 )
+		self.btnRight:AlignBottom( 5 )
 
-    	self.btnLeft:SetVisible( self.pnlCanvas.x < 0 )
-    	self.btnRight:SetVisible( self.pnlCanvas.x + self.pnlCanvas:GetWide() > self:GetWide() )
+		self.btnLeft:SetVisible( self.pnlCanvas.x < 0 )
+		self.btnRight:SetVisible( self.pnlCanvas.x + self.pnlCanvas:GetWide() > self:GetWide() )
 
-    end
+	end
 end
 
 function PANEL:AddEditorTab( name , icon )
-    name = name or "new "..#self.Editors + 1
-    icon = icon or "icon16/page.png"
+	name = name or "new " .. #self.Editors + 1
+	icon = icon or "icon16/page.png"
 
-    local editor = vgui.Create( "Luabox_Editor" , self )
+	local editor = vgui.Create( "Luabox_Editor" , self )
 	editor:SetIgnoreTilde( self.Menus.Tools.TildeIgnore:GetChecked() )
 	editor.OldLayout = editor.PerformLayout
 
@@ -634,16 +678,16 @@ function PANEL:AddEditorTab( name , icon )
 		editor:RequestFocus()
 	end
 
-    local sheet = self.EditorSheet:AddSheet( name , editor , icon , false , false , name )
+	local sheet = self.EditorSheet:AddSheet( name , editor , icon , false , false , name )
 
-    local tab = sheet.Tab
+	local tab = sheet.Tab
 	tab.Sheet = sheet
 
-    tab.oldsize = tab.GetContentSize
+	tab.oldsize = tab.GetContentSize
 	tab.GetContentSize = function( tab )
-        local x , y = tab.oldsize( tab )
-        return (x + 12 ) , y
-    end
+		local x , y = tab.oldsize( tab )
+		return (x + 12 ) , y
+	end
 
 	tab.OldClick = tab.DoClick
 	tab.DoClick = function( tab )
@@ -652,22 +696,22 @@ function PANEL:AddEditorTab( name , icon )
 		tab.Sheet.Panel:RequestFocus()
 	end
 
-    tab:InvalidateLayout( true )
+	tab:InvalidateLayout( true )
 
-    local closebutton = vgui.Create( "Luabox_Tab_Close" , tab )
-    closebutton:SetSize( 12 , 12 )
-    closebutton:SetPos( tab:GetWide() - 18 , 6 )
-    closebutton.InvalidateLayout = function( closebutton )
-        closebutton:SetPos( tab:GetWide() - 18 , 6 )
-    end
+	local closebutton = vgui.Create( "Luabox_Tab_Close" , tab )
+	closebutton:SetSize( 12 , 12 )
+	closebutton:SetPos( tab:GetWide() - 18 , 6 )
+	closebutton.InvalidateLayout = function( closebutton )
+		closebutton:SetPos( tab:GetWide() - 18 , 6 )
+	end
 
-    closebutton.DoClick = function( closebutton )
+	closebutton.DoClick = function( closebutton )
 		self:RemoveEditorTab( tab )
-    end
+	end
 
-    table.insert( self.Editors , sheet )
+	table.insert( self.Editors , sheet )
 
-    return sheet
+	return sheet
 end
 
 function PANEL:OpenFile( file )
@@ -685,8 +729,23 @@ function PANEL:OpenFile( file )
 	sheet.Panel:SetCaretPos( #contents , #contents[#contents] + 1)
 end
 
+function PANEL:GetTabContents( tab )
+	tab = tab or self.EditorSheet:GetActiveTab()
+	local contents
+
+	if tab then
+		if tab.Sheet then
+			if tab.Sheet.Panel then
+				contents = table.concat( tab.Sheet.Panel.Rows , "\n" )
+			end
+		end
+	end
+
+	return contents
+end
+
 function PANEL:RemoveEditorTab( tab )
-	local tab = tab or self.EditorSheet:GetActiveTab()
+	tab = tab or self.EditorSheet:GetActiveTab()
 	local key = table.RemoveByValue( self.Editors , tab.Sheet )
 
 
@@ -825,30 +884,30 @@ end
 
 
 function PANEL:PerformLayout( w , h )
-    self.BaseClass.PerformLayout( self )
+	self.BaseClass.PerformLayout( self )
 
-    self.Menu:SetPos( 1 , 24 )
-    self.Menu:SetWide( self:GetWide() - 2 )
+	self.Menu:SetPos( 1 , 24 )
+	self.Menu:SetWide( self:GetWide() - 2 )
 
 	if self.OutputArea:IsVisible() then
-    	self.EditorSplitter:SetupBounds( self.EditorSheet.y + 50 , self.OutputArea.y + self.OutputArea:GetTall() - self.EditorSplitter:GetTall() - 28 )
+		self.EditorSplitter:SetupBounds( self.EditorSheet.y + 50 , self.OutputArea.y + self.OutputArea:GetTall() - self.EditorSplitter:GetTall() - 28 )
 
-        if h <= ( self.OutputArea:GetTall() + self.EditorSplitter:GetTall() + spacing * 2 + 97 ) then
-            self.OutputArea:SetTall( math.max( h - self.EditorSplitter:GetTall() - spacing * 2 - 97 , 50 ) )
-        end
+		if h <= ( self.OutputArea:GetTall() + self.EditorSplitter:GetTall() + spacing * 2 + 97 ) then
+			self.OutputArea:SetTall( math.max( h - self.EditorSplitter:GetTall() - spacing * 2 - 97 , 50 ) )
+		end
 
 	end
 	if self.ProjectTree:IsVisible() then
-    	self.FileSplitter:SetupBounds( self.ProjectTree.x + 100, self.EditorArea.x + self.EditorArea:GetWide() - self.FileSplitter:GetWide() - 100 )
+		self.FileSplitter:SetupBounds( self.ProjectTree.x + 100, self.EditorArea.x + self.EditorArea:GetWide() - self.FileSplitter:GetWide() - 100 )
 
-        if w <= (self.ProjectTree:GetWide() + spacing * 2 + 100 ) then
-            self.ProjectTree:SetWide( math.Max( w - spacing * 2 - 100 , 100 ) )
+		if w <= (self.ProjectTree:GetWide() + spacing * 2 + 100 ) then
+			self.ProjectTree:SetWide( math.Max( w - spacing * 2 - 100 , 100 ) )
 
-        end
+		end
 	end
 end
 
-function PANEL:OnKeyCodePressed( code , pnl )
+function PANEL:OnKeyCodePressed( code )
 	if self.HotKeyTime == FrameNumber() then return end
 	self.HotKeyTime = FrameNumber()
 
@@ -910,12 +969,3 @@ function PANEL:OnClose()
 end
 
 vgui.Register( PANEL.ClassName , PANEL , PANEL.Base )
-
-function luabox.GetEditor()
-    if not luabox.Editor then
-        luabox.Editor = vgui.Create("Luabox_Editor_Frame")
-        luabox.Editor:Hide()
-    end
-
-    return luabox.Editor
-end

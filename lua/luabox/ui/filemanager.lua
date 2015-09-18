@@ -5,12 +5,13 @@ PANEL.Base = "DFrame"
 local spacing = 4
 
 function PANEL:Init()
-    self:SetSize( 600 , 600 )
+    self:SetSize( ScrW() / 3.5 , ScrH() / 2.5 )
     self:SetMinWidth( 200 )
     self:SetMinHeight( 100 )
     self:SetSizable( true )
     self:SetDraggable( true )
     self:SetMode( "manager" )
+    self:SetTitle( "Luabox File Manager" )
     self:DockPadding( spacing / 2 , 24 + spacing / 2 , spacing / 2 + 1, spacing / 2 )
 
     self:SetupAddressBar()
@@ -118,7 +119,15 @@ function PANEL:SetupFileTreeButtons( pnl )
             end
 
     		v.DoDoubleClick = function( but )
-    			--self:OpenFile( but:GetFileSystem() )
+                if self:GetMode() == "open" then
+                    self:SetOpenFile( but:GetFileSystem() )
+                    self.Callback( but:GetFileSystem() )
+                    self:Remove()
+                elseif self:GetMode() == "save" then
+                    self:SetSaveFile( but:GetFileSystem() )
+                    self.Callback( but:GetFileSystem() )
+                    self:Remove()
+                end
     		end
 
     		v.DoRightClick = function( but )
@@ -131,7 +140,19 @@ function PANEL:SetupFileTreeButtons( pnl )
                         self.FileMove = nil
                     end ):SetIcon( "icon16/cancel.png" )
                 else
-        			--menu:AddOption( "Open" , function() self:OpenFile( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_page.png")
+                    if self:GetMode() == "open" then
+        			    menu:AddOption( "Open" , function()
+                            self:SetOpenFile( but:GetFileSystem() )
+                            self.Callback( but:GetFileSystem() )
+                            self:Remove()
+                        end ):SetIcon( "icon16/folder_page.png")
+                    elseif self:GetMode() == "save" then
+        			    menu:AddOption( "Save" , function()
+                            self:SetSaveFile( but:GetFileSystem() )
+                            self.Callback( but:GetFileSystem() )
+                            self:Remove()
+                        end ):SetIcon( "icon16/folder_page.png")
+                    end
 
         			menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/page_white_go.png")
 
@@ -357,9 +378,21 @@ function PANEL:SetupFolderViewButtons()
             if self:GetMode() == "open" then
                 self:SetOpenFile( but:GetFileSystem() )
             elseif self:GetMode() == "save" then
-                self:SetSaveFile( but:GetFileSystem() )
+                self:SetSaveFile( but:GetFileSystem() , self.SaveBar:GetText() )
             end
 
+        end
+
+        v.DoDoubleClick = function( but )
+            if self:GetMode() == "open" then
+                self:SetOpenFile( but:GetFileSystem() )
+                self.Callback( but:GetFileSystem() )
+                self:Remove()
+            elseif self:GetMode() == "save" then
+                self:SetSaveFile( but:GetFileSystem() )
+                self.Callback( but:GetFileSystem() , self.SaveBar:GetText() )
+                self:Remove()
+            end
         end
 
         v.DoRightClick = function( but )
@@ -626,6 +659,7 @@ function PANEL:SetMode( mode , callback )
     mode = string.lower( mode )
 
     self.Mode = mode
+    self.Callback = callback
 
     if mode == "open" then
 
@@ -700,9 +734,13 @@ function PANEL:SetMode( mode , callback )
                 savefile = self:GetSaveFile()
             end
 
-            self:SetSaveFile( savefile )
+            if not savefile then
+                savefile = self.FolderView:GetFileSystem()
+            end
 
-            callback( savefile )
+            --self:SetSaveFile( savefile )
+
+            callback( savefile , self.SaveBar:GetText() )
 
             self:Remove()
         end
@@ -715,9 +753,13 @@ function PANEL:SetMode( mode , callback )
                 savefile = self:GetSaveFile()
             end
 
-            self:SetSaveFile( savefile )
+            if not savefile then
+                savefile = self.FolderView:GetFileSystem()
+            end
 
-            callback( savefile )
+            --self:SetSaveFile( savefile )
+            --print("wite",self.SaveBar:GetText())
+            callback( savefile , self.SaveBar:GetText() )
 
             self:Remove()
         end

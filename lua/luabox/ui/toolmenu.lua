@@ -104,7 +104,7 @@ function PANEL:SetupModelPanel()
     	local chld = layout:GetChildren()
     	for k, v in pairs( chld ) do
 
-    		if ( !v:IsVisible() ) then continue end
+            if ( not v:IsVisible( ) ) then continue end
 
     		local w, h = v:GetSize()
     		if ( x + w > MaxWidth || ( v.OwnLine && x > layout.m_iBorder ) ) then
@@ -129,82 +129,68 @@ function PANEL:SetupModelPanel()
     self:PopulateModelSelector()
 end
 
-function PANEL:PopulateModelSelector()
-    self.ModelSelector:Clear()
-    self.ModelSelectorScroll:GetCanvas():SetSize(0,0)
+function PANEL:PopulateModelSelector( )
+    self.ModelSelector:Clear( )
+    self.ModelSelectorScroll:GetCanvas( ):SetSize( 0, 0 )
+    local scale = self.ModelScaleSelector:GetSelected( ):gsub( "%D", "" )
+    scale = tonumber( scale )
 
-    local scale = self.ModelScaleSelector:GetSelected():gsub( "%D" , "" )
-    scale = tonumber(scale)
-
-    for i , v in ipairs( self.ModelList[ self.ModelScaleSelector:GetSelected() ] ) do
-
-        if file.Exists( v , "GAME" ) then
+    for i , v in ipairs( self.ModelList[ self.ModelScaleSelector:GetSelected( ) ] ) do
+        if file.Exists( v, "GAME" ) then
             local ico = self.ModelSelector:Add( "DModelPanel" )
 
-            ico.SetModel = function( ico , strModelName )
-            	if ( IsValid( ico.Entity ) ) then
-                    ico.Entity:Remove()
+            ico.SetModel = function( ico, strModelName )
+                if ( IsValid( ico.Entity ) ) then
+                    ico.Entity:Remove( )
                     ico.Entity = nil
-            	end
+                end
 
                 ico.Entity = ClientsideModel( strModelName, RENDERGROUP_BOTH )
-            	if ( !IsValid( ico.Entity ) ) then return end
-
+                if ( not IsValid( ico.Entity ) ) then return end
                 ico.Entity:SetNoDraw( true )
             end
 
             ico:SetModel( v )
-            ico:SetSize( 110 , 110 )
+            ico:SetSize( 110, 110 )
 
-            ico.Paint = function( ico , w, h )
-                draw.RoundedBox( 4 , 0 , 0 , w, h , luabox.Colors.FillerGray )
-
-                if ( !IsValid( ico.Entity ) ) then return end
-
+            ico.Paint = function( ico, w, h )
+                draw.RoundedBox( 4, 0, 0, w, h, luabox.Colors.FillerGray )
+                if ( not IsValid( ico.Entity ) ) then return end
                 local x, y = ico:LocalToScreen( 0, 0 )
-
-                cam.Start3D( ico.vCamPos, ico.aLookAngle, ico.fFOV, x, y, w, h, 2 , ico.FarZ )
-
-                ico:DrawModel()
-
-                cam.End3D()
+                cam.Start3D( ico.vCamPos, ico.aLookAngle, ico.fFOV, x, y, w, h, 2, ico.FarZ )
+                ico:DrawModel( )
+                cam.End3D( )
 
                 if self.SelectedModel == ico then
-                    surface.SetDrawColor( 255 , 201 , 0 )
+                    surface.SetDrawColor( 255, 201, 0 )
 
-                    for i = 3 , 7 do
-                        surface.DrawOutlinedRect( i , i , w - i * 2 , h - i *2 )
+                    for i = 3, 7, 1 do
+                        surface.DrawOutlinedRect( i, i, w - i * 2, h - i * 2 )
                     end
                 end
             end
 
-            local min , max = ico.Entity:GetModelBounds()
+            local fov = 10
+            local min, max = ico.Entity:GetModelBounds( )
             local size = max - min
-            local opposite = size.y / 2
-            local adjacent = 50
+            local opposite = size.y
+            local adjacent = ( opposite / math.tan( math.rad( fov ) ) )
 
-            local hypotenuse = math.sqrt( ( opposite ^ 2 + adjacent ^ 2 ) )
-            local fov = math.deg( math.sin( ( opposite / hypotenuse ) ) ) * 2
-
-            ico:SetLookAng( Angle(90, 180 ,0) )
-
-            ico:SetCamPos( Vector(0 , 0 , adjacent ) )
-
+            ico:SetLookAng( Angle( 90, 180, 0 ) )
+            ico:SetCamPos( Vector( 0, 0, adjacent ) )
             ico:SetFOV( fov )
 
-            ico.DoClick = function ( ico )
+            ico.DoClick = function( ico )
                 self.SelectedModel = ico
-                RunConsoleCommand( "luabox_core_model" , ico:GetModel() )
+                RunConsoleCommand( "luabox_core_model", ico:GetModel( ) )
             end
 
             ico:SetToolTip( v )
         end
     end
 
-    self.ModelSelectorScroll:Rebuild()
+    self.ModelSelectorScroll:Rebuild( )
     self.ModelSelectorScroll:InvalidateLayout( true )
-
-
     self.ModelSelector:InvalidateLayout( true )
 end
 
@@ -476,8 +462,7 @@ function PANEL:Init()
     self.OpenEditor:Dock( TOP )
     self.OpenEditor:SetText( "Open Editor" )
     self.OpenEditor.DoClick = function( but )
-        luabox.GetEditor():Show()
-        luabox.GetEditor():MakePopup()
+        luabox.ShowEditor()
     end
 
     self.NewFile = vgui.Create( "DButton" , self )
@@ -485,9 +470,8 @@ function PANEL:Init()
     self.NewFile:Dock( TOP )
     self.NewFile:SetText( "New File" )
     self.NewFile.DoClick = function( but )
-        luabox.GetEditor():Show()
+        luabox.ShowEditor()
         luabox.GetEditor():AddEditorTab()
-        luabox.GetEditor():MakePopup()
     end
 
 
