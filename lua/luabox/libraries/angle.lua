@@ -1,9 +1,10 @@
 --Copyright 2014 Nathan Beals
 AngleProxy = luabox.Class()
-
 local container , ply , env = ...
 
 local AngLookup = luabox.WeakTable( "k" ) --must have weak keys only because the only reference to the actual angle object is being held in this table
+env.AngLookup = AngLookup
+
 local netc = container:GetNetworker()
 
 local check = luabox.CanUse

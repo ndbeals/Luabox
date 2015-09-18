@@ -272,8 +272,6 @@ Environment = Class()
 --- Environment Class Constructor.
 -- Creates an environment class which holds one lua environment. This includes variables and player specific functions.
 function Environment:Initialize()
-	self.RemoveHooks = {}
-
 	self:SetEnvironment( {} )
 end
 
@@ -293,24 +291,21 @@ function Environment:SetEnvironment( env )
 	self.Environment["self"] = {}
 end
 
---- Call on Remove.
--- Adds a function to be called on remove
---@param name Unique identifier of remove hook
---@param func function to be called
-function Environment:CallOnRemove( name , func )
-	self.RemoveHooks[ name ] = func
+--- On Remove.
+-- Overwrite this
+function Environment:OnRemove()
 end
 
 --- Remove.
 -- Removes all references on the self table.
 function Environment:Remove()
 
-	for name , func in pairs( self.RemoveHooks ) do
-		local err , msg  = pcall( func )
+	--for name , func in pairs( self.RemoveHooks ) do
+		local err , msg  = pcall( self.OnRemove , self )
 		if not err then
-			print( "Unloading function: ''" .. name .. "'' Failed with error:" , msg )
+			print( "Unloading function failed with error:" , msg )
 		end
-	end
+	--end
 
 	for key , val in pairs( self ) do
 		self[key] = nil
@@ -1128,6 +1123,20 @@ function Container:RemoveScript( script )
 	end
 end
 
+--- Remove Scripts.
+-- Removes all script and all associated scripts.
+function Container:RemoveScripts()
+
+	for k , script in pairs( self:GetScripts() ) do
+		--print("iscript")
+		--table.remove( self:GetScripts() , TableHasValue( self:GetScripts() , script ) )
+
+		script:Remove()
+	end
+
+	self.Scripts = {}
+end
+
 --- Get Owner.
 -- Returns the container's owner.
 --@return Owner: Owner player object.
@@ -1372,26 +1381,34 @@ function FileSystem:AddFile( name )
 	if not name then return false end
 	if self:GetSingleFile() then return false end
 
-	name = name .. ".txt"
+	if not (string.GetExtensionFromFilename( name ) == "txt") then
+		name = name .. ".txt"
+	end
+
+	local file = File( self:GetPath() .. "/" .. name , self )
 
 	file.Write( self:GetPath() .. "/" .. name , "" )
 
-	table.insert( self.Files , File( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+	table.insert( self.Files , file )
 
 	self:GetRootFileSystem():Refresh( true )
+
+	return file
 end
 
 function FileSystem:AddDirectory( name )
 	if not name then return false end
 	if self:GetSingleFile() then return false end
 
-	--name = name .. ".txt"
+	local directory = FileSystem( self:GetPath() .. "/" .. name , self)
 
 	file.CreateDir( self:GetPath() .. "/" .. name )
 
-	table.insert( self.Directories , FileSystem( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
+	table.insert( self.Directories , directory )
 
 	self:GetRootFileSystem():Refresh( true )
+
+	return directory
 end
 
 function FileSystem:Build()
@@ -1534,6 +1551,10 @@ end
 
 function File:Read()
 	return file.Read( self:GetPath() , "DATA" )
+end
+
+function File:Write( str )
+	file.Write( self:GetPath() , str )
 end
 
 --function File:Build() end

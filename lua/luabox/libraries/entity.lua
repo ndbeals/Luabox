@@ -2,7 +2,9 @@
 local container , ply , env = ...
 local netc = container:GetNetworker()
 
-local EntLookup = luabox.WeakTable()--{} --two way look up table, use the actual entity as the key to get the entity proxy class, or use the entity proxy class as the key and get the actual entity
+local EntLookup = luabox.WeakTable() --two way look up table, use the actual entity as the key to get the entity proxy class, or use the entity proxy class as the key and get the actual entity
+env.EntLookup = EntLookup
+
 EntityProxy = luabox.Class()
 local G_Entity = Entity
 

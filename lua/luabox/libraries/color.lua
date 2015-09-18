@@ -3,7 +3,8 @@ ColorProxy = luabox.Class()
 
 local container , ply , env = ...
 
-local ColorLookup = {}
+local ColorLookup = luabox.WeakTable( "k" )
+env.ColorLookup = ColorLookup
 
 local netc = container:GetNetworker()
 
