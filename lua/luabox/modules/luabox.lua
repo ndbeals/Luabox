@@ -128,7 +128,7 @@ end
 --@return class Returns the new class template to be edited.
 function Class( base )
 	local class = { -- a new class metatable
-		base = base
+		Base = base
 	}
 	class.__index = class
 
@@ -1372,20 +1372,13 @@ function FileSystem:AddFile( name )
 	if not name then return false end
 	if self:GetSingleFile() then return false end
 
-	if not (string.GetExtensionFromFilename( name ) == "txt") then
-		name = name .. ".txt"
-	end
-
-
-	local file = File( self:GetPath() .. "/" .. name , self )
+	name = name .. ".txt"
 
 	file.Write( self:GetPath() .. "/" .. name , "" )
 
-	table.insert( self.Files , file )
+	table.insert( self.Files , File( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
 
 	self:GetRootFileSystem():Refresh( true )
-
-	return file
 end
 
 function FileSystem:AddDirectory( name )
@@ -1394,15 +1387,11 @@ function FileSystem:AddDirectory( name )
 
 	--name = name .. ".txt"
 
-	local directory = FileSystem( self:GetPath() .. "/" .. name , self)
-
 	file.CreateDir( self:GetPath() .. "/" .. name )
 
-	table.insert( self.Directories , directory )
+	table.insert( self.Directories , FileSystem( self:GetPath() .. "/" .. name , self:GetRootFileSystem() ) )
 
 	self:GetRootFileSystem():Refresh( true )
-
-	return directory
 end
 
 function FileSystem:Build()
@@ -1541,10 +1530,6 @@ function File:Move( destfs )
 	file.Delete( self:GetPath() )
 	self:SetPath( destfs:GetPath() .. "/" .. self:GetShortPath() )
 	return true
-end
-
-function File:Write( str )
-	file.Write( self:GetPath() , str )
 end
 
 function File:Read()
