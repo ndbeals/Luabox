@@ -106,7 +106,8 @@ function EntityProxy:GetClass()
 end
 
 function EntityProxy:GetCollisionBounds()
-    return EntLookup[ self ]:GetCollisionBounds()
+	local min, max = EntLookup[ self ]:GetCollisionBounds()()
+	return VectorProxy( min ), VectorProxy( max )
 end
 
 function EntityProxy:GetCollisionGroup()
@@ -115,6 +116,427 @@ end
 
 function EntityProxy:GetColor()
     return EntLookup[ self ]:GetColor()
+end
+
+function EntityProxy:GetForward()
+	return VectorProxy( EntLookup[ self ]:GetForward() )
+end
+
+function EntityProxy:GetGravity()
+	return EntLookup[ self ]:GetGravity()
+end
+
+function EntityProxy:GetGroundEntity()
+	return EntLookup[ self ]:GetGroundEntity()
+end
+
+function EntityProxy:GetHitBoxBone( ... )
+	return EntLookup[ self ]:GetHitBoxBone( ... )
+end
+
+function EntityProxy:GetHitBoxBounds( ... )
+	local min, max = EntLookup[ self ]:GetHitBoxBounds()()
+	return VectorProxy( min ), VectorProxy( max )
+end
+
+function EntityProxy:GetHitBoxCount( ... )
+	return EntLookup[ self ]:GetHitBoxCount( ... )
+end
+
+function EntityProxy:GetHitBoxGroupCount()
+	return EntLookup[ self ]:GetHitBoxGroupCount()
+end
+
+function EntityProxy:GetHitboxSet()
+	return EntLookup[ self ]:GetHitboxSet()
+end
+
+function EntityProxy:GetHitboxSetCount()
+	return EntLookup[ self ]:GetHitboxSetCount()
+end
+
+function EntityProxy:GetLocalAngles()
+	return AngleProxy( EntLookup[ self ]:GetLocalAngles() )
+end
+
+function EntityProxy:GetLocalAngularVelocity()
+	return AngleProxy( EntLookup[ self ]:GetLocalAngularVelocity() )
+end
+
+function EntityProxy:GetLocalPos()
+	return VectorProxy( EntLookup[ self ]:GetLocalPos() )
+end
+
+function EntityProxy:GetManipulateBoneAngles( ... )
+	return AngleProxy( EntLookup[ self ]:GetManipulateBoneAngles( ... ) )
+end
+
+function EntityProxy:GetManipulateBoneJiggle( ... )
+	return EntLookup[ self ]:GetManipulateBoneJiggle( ... )
+end
+
+function EntityProxy:GetManipulateBonePosition( ... )
+	return VectorProxy( EntLookup[ self ]:GetManipulateBonePosition( ... ) )
+end
+
+function EntityProxy:GetManipulateBoneScale( ... )
+	return VectorProxy( EntLookup[ self ]:GetManipulateBoneScale( ... ) )
+end
+
+function EntityProxy:GetMaterial()
+	return EntLookup[ self ]:GetMaterial()
+end
+
+function EntityProxy:GetMaterials()
+	return EntLookup[ self ]:GetMaterials()
+end
+
+function EntityProxy:GetMaxHealth()
+	return EntLookup[ self ]:GetMaxHealth()
+end
+
+function EntityProxy:GetModel()
+	return EntLookup[ self ]:GetModel()
+end
+
+function EntityProxy:GetModelBounds()
+	local min, max = EntLookup[ self ]:GetModelBounds()()
+	return VectorProxy( min ), VectorProxy( max )
+end
+
+function EntityProxy:GetModelRadius()
+	return EntLookup[ self ]:GetModelRadius()
+end
+
+function EntityProxy:GetModelRenderBounds()
+	local min, max = EntLookup[ self ]:GetModelRenderBounds()
+	return VectorProxy( min ), VectorProxy( max )
+end
+
+function EntityProxy:GetModelScale()
+	return EntLookup[ self ]:GetModelScale()
+end
+
+function EntityProxy:GetMoveCollide()
+	return EntLookup[ self ]:GetMoveCollide()
+end
+
+function EntityProxy:GetMoveParent()
+	return EntLookup[ self ]:GetMoveParent()
+end
+
+function EntityProxy:GetMoveType()
+	return EntLookup[ self ]:GetMoveType()
+end
+
+function EntityProxy:GetNoDraw()
+	return EntLookup[ self ]:GetNoDraw()
+end
+
+function EntityProxy:GetNumBodyGroups()
+	return EntLookup[ self ]:GetNumBodyGroups()
+end
+
+function EntityProxy:GetNumPoseParameters()
+	return EntLookup[ self ]:GetNumPoseParameters()
+end
+
+function EntityProxy:GetOwner()
+	return EntLookup[ self ]:GetOwner()
+end
+
+function EntityProxy:GetParent()
+	return EntLookup[ self ]:GetParent()
+end
+
+function EntityProxy:GetParentAttachment()
+	return EntLookup[ self ]:GetParentAttachment()
+end
+
+function EntityProxy:GetPhysicsObject() -- ????
+	return EntLookup[ self ]:GetPhysicsObject()
+end
+
+function EntityProxy:GetPhysicsObjectCount()
+	return EntLookup[ self ]:GetPhysicsObjectCount()
+end
+
+function EntityProxy:GetPhysicsObjectNum( ... )
+	return EntLookup[ self ]:GetPhysicsObjectNum( ... )
+end
+
+function EntityProxy:GetPlaybackRate()
+	return EntLookup[ self ]:GetPlaybackRate()
+end
+
+function EntityProxy:GetPos()
+	return EntLookup[ self ]:GetPos()
+end
+
+function EntityProxy:GetPoseParameter( ... )
+	return EntLookup[ self ]:GetPoseParameter( ... )
+end
+
+function EntityProxy:GetPoseParameterName( ... )
+	return EntLookup[ self ]:GetPoseParameterName( ... )
+end
+
+function EntityProxy:GetPoseParameterRange( ... )
+	return EntLookup[ self ]:GetPoseParameterRange( ... )
+end
+
+function EntityProxy:GetRagdollOwner()
+	return EntLookup[ self ]:GetRagdollOwner()
+end
+
+function EntityProxy:GetRenderFX()
+	return EntLookup[ self ]:GetRenderFX()
+end
+
+function EntityProxy:GetRenderMode()
+	return EntLookup[ self ]:GetRenderMode()
+end
+
+function EntityProxy:GetRight()
+	return VectorProxy( EntLookup[ self ]:GetRight() )
+end
+
+function EntityProxy:GetRotatedAABB( ... )
+	local min, max = EntLookup[ self ]:GetRotatedAABB()
+	return VectorProxy( min ), VectorProxy( max )
+end
+
+function EntityProxy:GetSequence()
+	return EntLookup[ self ]:GetSequence()
+end
+
+function EntityProxy:GetSequenceActivity( ... )
+	return EntLookup[ self ]:GetSequenceActivity( ... )
+end
+
+function EntityProxy:GetSequenceActivityName( ... )
+	return EntLookup[ self ]:GetSequenceActivityName( ... )
+end
+
+function EntityProxy:GetSequenceCount()
+	return EntLookup[ self ]:GetSequenceCount()
+end
+
+function EntityProxy:GetSequenceGroundSpeed( ... )
+	return EntLookup[ self ]:GetSequenceGroundSpeed( ... )
+end
+
+function EntityProxy:GetSequenceInfo( ... )
+	return EntLookup[ self ]:GetSequenceInfo( ... )
+end
+
+function EntityProxy:GetSequenceList()
+	return EntLookup[ self ]:GetSequenceList()
+end
+
+function EntityProxy:GetSequenceName( ... )
+	return EntLookup[ self ]:GetSequenceName( ... )
+end
+
+function EntityProxy:GetShouldPlayPickupSound()
+	return EntLookup[ self ]:GetShouldPlayPickupSound()
+end
+
+function EntityProxy:GetShouldServerRagdoll()
+	return EntLookup[ self ]:GetShouldServerRagdoll()
+end
+
+function EntityProxy:GetSkin()
+	return EntLookup[ self ]:GetSkin()
+end
+
+function EntityProxy:GetSolid()
+	return EntLookup[ self ]:GetSolid()
+end
+
+function EntityProxy:GetSolidFlags()
+	return EntLookup[ self ]:GetSolidFlags()
+end
+
+function EntityProxy:GetSpawnEffect()
+	return EntLookup[ self ]:GetSpawnEffect()
+end
+
+function EntityProxy:GetSpawnFlags()
+	return EntLookup[ self ]:GetSpawnFlags()
+end
+
+function EntityProxy:GetSubMaterial( ... )
+	return EntLookup[ self ]:GetSubMaterial( ... )
+end
+
+function EntityProxy:GetSubModels()
+	return EntLookup[ self ]:GetSubModels()
+end
+
+function EntityProxy:GetTable()
+	return EntLookup[ self ]:GetTable()
+end
+
+function EntityProxy:GetTouchTrace()
+	return EntLookup[ self ]:GetTouchTrace()
+end
+
+function EntityProxy:GetTransmitWithParent()
+	return EntLookup[ self ]:GetTransmitWithParent()
+end
+
+function EntityProxy:GetUp()
+	return VectorProxy( EntLookup[ self ]:GetUp() )
+end
+
+function EntityProxy:GetVelocity()
+	return VectorProxy( EntLookup[ self ]:GetVelocity() )
+end
+
+function EntityProxy:HasBoneManipulations()
+	return EntLookup[ self ]:HasBoneManipulations()
+end
+
+function EntityProxy:HasFlexManipulatior()
+	return EntLookup[ self ]:HasFlexManipulatior()
+end
+
+function EntityProxy:HasSpawnFlags( ... )
+	return EntLookup[ self ]:HasSpawnFlags( ... )
+end
+
+function EntityProxy:Health()
+	return EntLookup[ self ]:Health()
+end
+
+function EntityProxy:IsConstrained()
+	return EntLookup[ self ]:IsConstrained()
+end
+
+function EntityProxy:IsDormant()
+	return EntLookup[ self ]:IsDormant()
+end
+
+function EntityProxy:IsEffectActive( ... )
+	return EntLookup[ self ]:IsEffectActive( ... )
+end
+
+function EntityProxy:IsEFlagSet( ... )
+	return EntLookup[ self ]:IsEFlagSet( ... )
+end
+
+function EntityProxy:IsFlagSet( ... )
+	return EntLookup[ self ]:IsFlagSet( ... )
+end
+
+function EntityProxy:IsLineOfSightClear( ... )
+	return EntLookup[ self ]:IsLineOfSightClear( ... )
+end
+
+function EntityProxy:IsNPC()
+	return EntLookup[ self ]:IsNPC()
+end
+
+function EntityProxy:IsOnFire()
+	return EntLookup[ self ]:IsOnFire()
+end
+
+function EntityProxy:IsOnGround()
+	return EntLookup[ self ]:IsOnGround()
+end
+
+function EntityProxy:IsPlayer()
+	return EntLookup[ self ]:IsPlayer()
+end
+
+function EntityProxy:IsRagdoll()
+	return EntLookup[ self ]:IsRagdoll()
+end
+
+function EntityProxy:IsSolid()
+	return EntLookup[ self ]:IsSolid()
+end
+
+function EntityProxy:IsValid()
+	return EntLookup[ self ]:IsValid()
+end
+
+function EntityProxy:IsVehicle()
+	return EntLookup[ self ]:IsVehicle()
+end
+
+function EntityProxy:IsWeapon()
+	return EntLookup[ self ]:IsWeapon()
+end
+
+function EntityProxy:IsWidget()
+	return EntLookup[ self ]:IsWidget()
+end
+
+function EntityProxy:IsWorld()
+	return EntLookup[ self ]:IsWorld()
+end
+
+function EntityProxy:LocalToWorld( ... )
+	return VectorProxy( EntLookup[ self ]:LocalToWorld( ... ) )
+end
+
+function EntityProxy:LocalToWorldAngles( ... )
+	return AngleProxy( EntLookup[ self ]:LocalToWorldAngles( ... ) )
+end
+
+function EntityProxy:LookupAttachment( ... )
+	return EntLookup[ self ]:LookupAttachment( ... )
+end
+
+function EntityProxy:LookupBone( ... )
+	return EntLookup[ self ]:LookupBone( ... )
+end
+
+function EntityProxy:LookupSequence( ... )
+	return EntLookup[ self ]:LookupSequence( ... )
+end
+
+function EntityProxy:NearestPoint( ... )
+	return VectorProxy( EntLookup[ self ]:NearestPoint( ... ) )
+end
+
+function EntityProxy:OBBCenter()
+	return VectorProxy( EntLookup[ self ]:OBBCenter() )
+end
+
+function EntityProxy:OBBMaxs()
+	return VectorProxy( EntLookup[ self ]:OBBMaxs() )
+end
+
+function EntityProxy:OBBMins()
+	return VectorProxy( EntLookup[ self ]:OBBMins() )
+end
+
+function EntityProxy:OnGround()
+	return EntLookup[ self ]:OnGround()
+end
+
+function EntityProxy:WaterLevel()
+	return EntLookup[ self ]:WaterLevel()
+end
+
+function EntityProxy:WorldSpaceAABB()
+	local min, max = EntLookup[ self ]:WorldSpaceAABB()
+	return VectorProxy( min ), VectorProxy( max )
+end
+
+function EntityProxy:WorldSpaceCenter()
+	return VectorProxy( EntLookup[ self ]:WorldSpaceCenter() )
+end
+
+function EntityProxy:WorldToLocal( ... )
+	return VectorProxy( EntLookup[ self ]:WorldToLocal( ... ) )
+end
+
+function EntityProxy:WorldToLocalAngles( ... )
+	return AngleProxy( EntLookup[ self ]:WorldToLocalAngles( ... ) )
 end
 --[[
 function EntityProxy:
