@@ -12,6 +12,7 @@ function PANEL:Init()
     self:SetDraggable( true )
     self:SetMode( "manager" )
     self:SetTitle( "Luabox File Manager" )
+    self:MakePopup()
     self:DockPadding( spacing / 2 , 24 + spacing / 2 , spacing / 2 + 1, spacing / 2 )
 
     self:SetupAddressBar()

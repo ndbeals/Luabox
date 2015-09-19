@@ -321,7 +321,9 @@ function PANEL:SetupFileBrowserButtons( pnl )
             end
 
     		v.DoDoubleClick = function( but )
-    			self:OpenFile( but:GetFileSystem() )
+    			luabox.GetEditor():OpenFile( but:GetFileSystem() )
+                luabox.GetEditor():SetFileSystem( but:GetFileSystem():GetRootFileSystem() )
+                luabox.ShowEditor()
     		end
 
     		v.DoRightClick = function( but )
@@ -334,7 +336,11 @@ function PANEL:SetupFileBrowserButtons( pnl )
                         self.FileMove = nil
                     end ):SetIcon( "icon16/cancel.png" )
                 else
-        			menu:AddOption( "Open" , function() self:OpenFile( but:GetFileSystem() ) end ):SetIcon( "icon16/folder_page.png")
+        			menu:AddOption( "Open" , function()
+                        luabox.GetEditor():OpenFile( but:GetFileSystem() )
+                        luabox.GetEditor():SetFileSystem( but:GetFileSystem():GetRootFileSystem() )
+                        luabox.ShowEditor()
+                    end ):SetIcon( "icon16/folder_page.png")
 
         			menu:AddOption( "Move" , function() self:StartFileMove( but:GetFileSystem() ) end ):SetIcon( "icon16/page_white_go.png")
 
@@ -342,7 +348,10 @@ function PANEL:SetupFileBrowserButtons( pnl )
 
                     menu:AddSpacer()
 
-                    menu:AddOption( "Delete" , function() but:GetFileSystem():Delete() end):SetIcon( "icon16/page_white_delete.png" )
+                    menu:AddOption( "Delete" , function()
+                        but:GetFileSystem():Delete()
+                        self:RefreshFileBrowser()
+                    end):SetIcon( "icon16/page_white_delete.png" )
                 end
 
     			local x , y = but:LocalToScreen( 0 , 0 )
@@ -367,6 +376,8 @@ function PANEL:SetupFileBrowserButtons( pnl )
                 if #but.ChildNodes:GetChildren() < 1 then
                     return true
                 end
+                luabox.GetEditor():SetFileSystem( but:GetFileSystem() )
+                luabox.ShowEditor()
             end
 
     		v.DoRightClick = function( but )
@@ -400,6 +411,13 @@ function PANEL:SetupFileBrowserButtons( pnl )
                         self.FileMove = nil
                     end ):SetIcon( "icon16/cancel.png" )
     			else
+                    menu:AddOption( "Open Editor Here" , function()
+                        luabox.GetEditor():SetFileSystem( but:GetFileSystem() )
+                        luabox.ShowEditor()
+                    end ):SetIcon( "icon16/folder_page.png")
+
+                    menu:AddSpacer()
+
                     menu:AddOption( "New File" , function()
                         Derma_StringRequest( "New File" , "Name the new file." , "new" , function( input )
                             but:GetFileSystem():AddFile( input )
@@ -480,9 +498,10 @@ function PANEL:Init()
     self.FileManager:Dock( TOP )
     self.FileManager:SetText( "File Manager" )
     self.FileManager.DoClick = function( but )
-        luabox.GetEditor():Show()
-        luabox.GetEditor():AddEditorTab()
-        luabox.GetEditor():MakePopup()
+        local frame = vgui.Create("Luabox_File_Manager")
+        frame:MakePopup()
+        frame:SetSize( frame:GetWide() * 2 , frame:GetTall() * 2 )
+        frame:Center()
     end
 
 

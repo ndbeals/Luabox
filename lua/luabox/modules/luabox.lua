@@ -1385,15 +1385,15 @@ function FileSystem:AddFile( name )
 		name = name .. ".txt"
 	end
 
-	local file = File( self:GetPath() .. "/" .. name , self )
+	local newfile = File( self:GetPath() .. "/" .. name , self )
 
-	file.Write( self:GetPath() .. "/" .. name , "" )
+	file.Write( newfile:GetPath() , "" )
 
-	table.insert( self.Files , file )
+	table.insert( self.Files , newfile )
 
 	self:GetRootFileSystem():Refresh( true )
 
-	return file
+	return newfile
 end
 
 function FileSystem:AddDirectory( name )

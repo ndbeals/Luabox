@@ -111,23 +111,8 @@ function PANEL:SetupFileMenu()
 	self.Menus.File:AddOption("Save As...", function()
 		local filemanager = vgui.Create( "Luabox_File_Manager" )
 		filemanager:SetMode( "save" , function( fs , path)
-			if not (string.GetExtensionFromFilename( path ) == "txt" ) then
-				print "ASFASFADSGSDG"
-				path = path .. ".txt"
-			end
-			print("AS",fs:GetPath(),fs:GetSingleFile(),path,string.GetExtensionFromFilename( path )=="txt")
-			if fs then
-				local contents = self:GetTabContents()
-				--print("haha",contents)
-				if fs:GetSingleFile() then
-					fs:Write( contents )
-				else
-					local newfs = fs:AddFile( path )
-					print("NESTFS",newfs)
-					--newfs:Write( contents )
 
-				end
-			end
+			self:SaveFile( fs , path )
 		end)
 
 		filemanager:MakePopup()
@@ -328,8 +313,15 @@ function PANEL:SetupProjectTree( )
 		menu:Open(x + tree:GetIndentSize(), y)
 	end
 
-	self.Container:GetFileSystem():Refresh(true)
-	self.ProjectTree:SetFileSystem(self.Container:GetFileSystem())
+	self:SetFileSystem( self.Container:GetFileSystem() )
+	--self:SetupProjectTreeButtons()
+end
+
+function PANEL:SetFileSystem( fs )
+	fs:Refresh( true )
+	self.FileSystem = fs
+
+	self.ProjectTree:SetFileSystem( self.FileSystem )
 	self:SetupProjectTreeButtons()
 end
 
@@ -353,9 +345,11 @@ end
 function PANEL:RefreshProjectTree( pnl )
 	pnl = pnl or self.ProjectTree
 
-	pnl:Refresh()
-
 	pnl:GetFileSystem():Refresh( true )
+
+	self.FileSystem:Refresh( true )
+
+	pnl:Refresh()
 
 	self:SetupProjectTreeButtons( pnl )
 end
@@ -399,7 +393,10 @@ function PANEL:SetupProjectTreeButtons( pnl )
 
 					menu:AddSpacer()
 
-					menu:AddOption( "Delete" , function() but:GetFileSystem():Delete() end):SetIcon( "icon16/page_white_delete.png" )
+					menu:AddOption( "Delete" , function()
+						but:GetFileSystem():Delete()
+						self:RefreshProjectTree()
+					end):SetIcon( "icon16/page_white_delete.png" )
 				end
 
 				local x , y = but:LocalToScreen( 0 , 0 )
@@ -662,6 +659,7 @@ end
 
 function PANEL:AddEditorTab( name , icon )
 	name = name or "new " .. #self.Editors + 1
+	sheet.Name = name
 	icon = icon or "icon16/page.png"
 
 	local editor = vgui.Create( "Luabox_Editor" , self )
@@ -711,13 +709,37 @@ function PANEL:AddEditorTab( name , icon )
 
 	table.insert( self.Editors , sheet )
 
+	self.EditorSheet:SetActiveTab( tab )
+
 	return sheet
+end
+
+function PANEL:SaveFile( fs , contents )
+	if fs then
+		local contents = self:GetTabContents()
+		
+		if fs:GetSingleFile() then
+			fs:Write( contents )
+		else
+			local newfs = fs:AddFile( path )
+
+			newfs:Write( contents )
+
+		end
+	end
 end
 
 function PANEL:OpenFile( file )
 	if not file:GetSingleFile() then return end
 
+	for i = 1 , #self.Editors do
+		if self.Editors[ i ].FileSystem == file then
+			return
+		end
+	end
+
 	local sheet = self:AddEditorTab( file:GetName() )
+	sheet.FileSystem == file
 
 	local contents = string.Explode( "\n" , file:Read() )
 
@@ -736,7 +758,8 @@ function PANEL:GetTabContents( tab )
 	if tab then
 		if tab.Sheet then
 			if tab.Sheet.Panel then
-				contents = table.concat( tab.Sheet.Panel.Rows , "\n" )
+				contents = luabox.CopyTable( tab.Sheet.Panel.Rows )
+				contents = table.concat( contents , "\n" )
 			end
 		end
 	end
@@ -937,8 +960,8 @@ function PANEL:OnKeyCodePressed( code )
 		end
 
 		if hover:GetName() == "DTree_Node_Button" and code == KEY_F5 then
-			self:RefreshProjectTree( hover:GetParent() )
-			return
+			--self:RefreshProjectTree( hover:GetParent() )
+			--return
 		end
 
 		if code == KEY_F5 then
