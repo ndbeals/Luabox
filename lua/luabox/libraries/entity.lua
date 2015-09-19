@@ -32,11 +32,123 @@ end
 
 
 if SERVER then
-function EntityProxy:CreatedByMap()
-    return EntLookup[ self ]:CreatedByMap()
-end
+
+	function EntityProxy:CreatedByMap()
+		return EntLookup[ self ]:CreatedByMap()
+	end
+
+	function EntityProxy:BodyTarget( ... )
+		return VectorProxy( EntLookup[ self ]:BodyTarget( ... ) )
+	end
+
+	function EntityProxy:GetBloodColor()
+		return EntLookup[ self ]:GetBloodColor()
+	end
+
+	function EntityProxy:GetConstrainedEntities()
+		local ent1, ent2 = EntLookup[ self ]:GetConstrainedEntities()
+		return EntityProxy( ent1 ), EntityProxy( ent2 )
+	end
+
+	function EntityProxy:GetConstrainedPhysObjects()
+		local phys1, phys2 = EntLookup[ self ]:GetConstrainedPhysObjects()
+		return PhysicsObjectProxy( phys1 ), PhysicsObjectProxy( phys2 )
+	end
+
+	function EntityProxy:GetCreationID()
+		return EntLookup[ self ]:GetCreationID()
+	end
+
+	function EntityProxy:GetCreator()
+		return PlayerProxy( EntLookup[ self ]:GetCreator() )
+	end
+
+	function EntityProxy:GetFriction()
+		return EntLookup[ self ]:GetFriction()
+	end
+
+	function EntityProxy:GetKeyValues()
+		return EntLookup[ self ]:GetKeyValues()
+	end
+
+	function EntityProxy:GetMaterialType()
+		return EntLookup[ self ]:GetMaterialType()
+	end
+
+	function EntityProxy:GetName()
+		return EntLookup[ self ]:GetName()
+	end
+
+	function EntityProxy:GetPhysicsAttacker( ... )
+		return PlayerProxy( EntLookup[ self ]:GetPhysicsAttacker( ... ) )
+	end
+
+	function EntityProxy:GetSequenceMoveDist( ... )
+		return EntLookup[ self ]:GetSequenceMoveDist( ... )
+	end
+
+	function EntityProxy:GetSequenceMoveYaw( ... )
+		return EntLookup[ self ]:GetSequenceMoveYaw( ... )
+	end
+
+	function EntityProxy:GetUnFreezable()
+		return EntLookup[ self ]:GetUnFreezable()
+	end
+
+	function EntityProxy:HeadTarget( ... )
+		return VectorProxy( EntLookup[ self ]:HeadTarget( ... ) )
+	end
+
+	function EntityProxy:IsConstraint()
+		return EntLookup[ self ]:IsConstraint()
+	end
+
+	function EntityProxy:IsInWorld()
+		return EntLookup[ self ]:IsInWorld()
+	end
+
+	function EntityProxy:IsLagCompensated()
+		return EntLookup[ self ]:IsLagCompensated()
+	end
+
+	function EntityProxy:IsPlayerHolding()
+		return EntLookup[ self ]:IsPlayerHolding()
+	end
+
+	function EntityProxy:Visible( ... )
+		return EntLookup[ self ]:Visible( ... )
+	end
+
+	function EntityProxy:VisibleVec( ... )
+		return EntLookup[ self ]:VisibleVec( ... )
+	end
+
 else
 
+	function EntityProxy:GetAnimTime()
+		return EntLookup[ self ]:GetAnimTime()
+	end
+
+	function EntityProxy:GetModelPhysBoneCount()
+		return EntLookup[ self ]:GetModelPhysBoneCount()
+	end
+
+	function EntityProxy:GetRenderAngles()
+		return AngleProxy( EntLookup[ self ]:GetRenderAngles() )
+	end
+
+	function EntityProxy:GetRenderBounds()
+		local min, max = EntLookup[ self ]:GetRenderBounds()
+		return VectorProxy( min ), VectorProxy( max )
+	end
+
+	function EntityProxy:GetRenderGroup()
+		return EntLookup[ self ]:GetRenderGroup()
+	end
+
+	function EntityProxy:GetRenderOrigin()
+		return VectorProxy( EntLookup[ self ]:GetRenderOrigin() )
+	end
 
 end
 
