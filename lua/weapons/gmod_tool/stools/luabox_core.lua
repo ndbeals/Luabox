@@ -78,6 +78,9 @@ function TOOL:LeftClick( trace )
 
 	ent:Spawn()
 
+	ent:SetLuaboxPlayer( owner )
+	ent:SetScript( luabox.GetCurrentScript():Read() )
+
 	if IsValid( trace.Entity ) then
 		const = constraint.Weld( ent , trace.Entity , 0 , trace.HitBoxBone , 0 , true , true )
 	end

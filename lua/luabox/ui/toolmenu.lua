@@ -316,6 +316,7 @@ function PANEL:SetupFileBrowserButtons( pnl )
                     but:GetRoot():SetSelectedItem( nil )
                     but.Selected = false
                 else
+                    luabox.SetCurrentScript( but:GetFileSystem() )
                     but.Selected = true
                 end
             end
@@ -472,8 +473,6 @@ function PANEL:Init()
 
     self:SetupFileBrowser()
 
-    --self.Spacer1 = vgui.Create( "DPanel" , self)
-    --self.Spacer1:DockMargin()
 
     self.OpenEditor = vgui.Create( "DButton" , self )
     self.OpenEditor:DockMargin( 0 , spacing / 2 + 20 , 0 , spacing / 2 )
@@ -481,6 +480,15 @@ function PANEL:Init()
     self.OpenEditor:SetText( "Open Editor" )
     self.OpenEditor.DoClick = function( but )
         luabox.ShowEditor()
+    end
+
+    self.OpenFile = vgui.Create( "DButton" , self )
+    self.OpenFile:DockMargin( 0 , spacing / 2 , 0 , spacing / 2 )
+    self.OpenFile:Dock( TOP )
+    self.OpenFile:SetText( "Open File" )
+    self.OpenFile.DoClick = function( but )
+        luabox.ShowEditor()
+        luabox.GetEditor():OpenFile( self.FileBrowser:GetSelectedItem():GetFileSystem() )
     end
 
     self.NewFile = vgui.Create( "DButton" , self )
@@ -491,6 +499,7 @@ function PANEL:Init()
         luabox.ShowEditor()
         luabox.GetEditor():AddEditorTab()
     end
+
 
 
     self.FileManager = vgui.Create( "DButton" , self )

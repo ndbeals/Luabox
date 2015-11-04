@@ -36,6 +36,13 @@ function luabox.ToggleEditor()
     end
 end
 
+function luabox.SetCurrentScript( fs )
+    luabox.CurrentScript = fs
+end
+
+function luabox.GetCurrentScript()
+    return luabox.CurrentScript
+end
 
 concommand.Add( "luabox_toggle_ide" , luabox.ToggleEditor )
 concommand.Add( "luabox_show_ide" , luabox.ShowEditor )

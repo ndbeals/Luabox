@@ -11,3 +11,17 @@ function ENT:Initialize()
     self:SetSolid(SOLID_VPHYSICS)
 
 end
+
+function ENT:OnRemove()
+    self.Container:RemoveEnvironment( self.Environment )
+end
+
+function ENT:SetLuaboxPlayer( ply )
+    self.Container = luabox.PlayerContainer( ply )
+end
+
+function ENT:SetScript( script )
+    self.Container:AddScript( script )
+
+    self.Container:RunScripts()
+end

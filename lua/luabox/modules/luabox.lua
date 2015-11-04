@@ -866,7 +866,7 @@ function Networker:ProcessReceiver( name )
 	local coro = self.Receivers[ name ]
 
 	if self.FirstExecute then
-		coroutine.resume( coro )
+		coroutine.resume( coro , self )
 
 		self.FirstExecute = false
 	end
@@ -888,12 +888,10 @@ function Networker:PoolMessage( name , index )
 	self.PooledNames[ index ] = name
 	self.PooledNames[ name ] = index
 
-	if SERVER then
-		net.Start( "luabox_poolmessagename" )
-			net.WriteString( name )
-			net.WriteUInt( index , 24 )
-		net.Send( self.Player )
-	end
+	net.Start( "luabox_poolmessagename" )
+		net.WriteString( name )
+		net.WriteUInt( index , 24 )
+	self:EndMessage()
 
 	self.PooledNum = index
 
@@ -925,6 +923,7 @@ end)
 net.Receive( "luabox_poolmessagename" , function( length , ply )
 	local networker , name , poolnum = PlayerContainer( ply ):GetNetworker() , net.ReadString() , net.ReadUInt(24)
 
+	networker.PooledNum = poolnum
 	networker.PooledNames[ poolnum ] = name
 	networker.PooledNames[ name ] = poolnum
 end)
@@ -948,9 +947,18 @@ function Container:Initialize( player , default_libs )
 
 		self.FileSystem = FileSystem( "luabox" )
 	end
+
+	if not IsValid( player ) then
+		error("No valid player supplied")
+	end
 	self.Player = player
 
 	self.Networker = Networker( player )
+
+	self.Networker:Receive( "SendScriptToServer" , function( net )
+		local s = net:ReadString()
+		print("AAAA",s,net)
+	end)
 
 	self.Scripts				=	{} -- since there can be multiple scripts per environment, scripts are stored as keys and environments as the values
 	self.Environments			=	{}
@@ -1069,17 +1077,37 @@ function Container:SelectScript( index )
 	return self.Scripts[ index ]
 end
 
+--- Send Script to Server
+-- Sends a script to the Server
+function Container:SendScriptToServer( script )
+	if not type( script ) == "string" then
+		error( "Argument #1 expects a string" )
+	end
+
+	self.Networker:Start( "SendScriptToServer" )
+		self.Networker:WriteString( script )
+	self.Networker:Send()
+
+end
+
+
 --- Add Script.
 -- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter.
---@param func Script function.
+--@param funcstr Script function.
 --@param env OPTIONAL: use an already existing environment.
 --@return newscript: The new script object.
-function Container:AddScript( func , env )
-	if not func then return end
+function Container:AddScript( funcstr , env )
+	if not funcstr then return end
+
+	for inc in string.gmatch( functstr , "include%s*%([%s%p]*([%w./]*)[%s%p]*%)[%c%s;]*") do
+		print("found and include" , inc )
+
+		--self:AddScript( self.)
+	end
 
 	env = env or self:AddNewEnvironment()
 
-	local newscript = Script( env , func )
+	local newscript = Script( env , funcstr )
 
 	table.insert( self:GetScripts() , newscript )
 
@@ -1128,13 +1156,12 @@ end
 function Container:RemoveScripts()
 
 	for k , script in pairs( self:GetScripts() ) do
-		--print("iscript")
-		--table.remove( self:GetScripts() , TableHasValue( self:GetScripts() , script ) )
 
 		script:Remove()
 	end
 
 	self.Scripts = {}
+	self.Environments = {}
 end
 
 --- Get Owner.
@@ -1200,7 +1227,7 @@ end
 local times = 0
 local env , container , retvalues
 local hooke = {}
-hooke.Call = function( name, gm, ... )
+hook.Call = function( name, gm, ... )
 	--arg = { ... }
 	--print("too much")
 	for i = 1 , #Containers do
@@ -1217,7 +1244,7 @@ hooke.Call = function( name, gm, ... )
 				if ( retvalues[1] and retvalues[2] != nil ) then
 
 					--table.remove( retvalues, 1 )
-					return unpack( retvalues , 2 )
+					--return unpack( retvalues , 2 )
 				elseif ( not retvalues[1] ) then
 					print("Hook '" .. name .. "' in plugin '" .. "plugin.Title" .. "' failed with error:" )
 					--print(unpack(retvalues,2) )
@@ -1231,6 +1258,15 @@ hooke.Call = function( name, gm, ... )
 
 	return HookCall( name, gm, ... )
 end
+
+
+--
+-- if CLIENT then
+-- 	hook.Add("InitPostEntity","SPAWN",function()
+-- 		print( "WAFAFAFASDF" , PlayerContainer() , LocalPlayer() )
+-- 	end)
+-- end
+
 LoadLibraries()
 
 
@@ -1310,6 +1346,30 @@ end
 
 function FileSystem:GetDirectories()
 	return self.Directories
+end
+
+function FileSystem:Search( path )
+	local ret
+
+	if string.TrimRight( self:GetPath() , "/") == string.TrimRight( path , "/" ) then
+		return self
+	end
+
+	for i , v in ipairs( self.Directories ) do
+
+		ret = v:Search( path )
+		if ret then
+			return ret
+		end
+	end
+
+	for i , v in ipairs( self.Files ) do
+
+		ret = v:Search( path )
+		if ret then
+			return ret
+		end
+	end
 end
 
 function FileSystem:Delete()

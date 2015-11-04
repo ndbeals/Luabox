@@ -659,7 +659,7 @@ end
 
 function PANEL:AddEditorTab( name , icon )
 	name = name or "new " .. #self.Editors + 1
-	sheet.Name = name
+
 	icon = icon or "icon16/page.png"
 
 	local editor = vgui.Create( "Luabox_Editor" , self )
@@ -677,6 +677,7 @@ function PANEL:AddEditorTab( name , icon )
 	end
 
 	local sheet = self.EditorSheet:AddSheet( name , editor , icon , false , false , name )
+	sheet.Name = name
 
 	local tab = sheet.Tab
 	tab.Sheet = sheet
@@ -714,18 +715,24 @@ function PANEL:AddEditorTab( name , icon )
 	return sheet
 end
 
-function PANEL:SaveFile( fs , contents )
+function PANEL:SaveFile( fs , path , sheet )
 	if fs then
-		local contents = self:GetTabContents()
-		
+		local sheet = sheet or self:GetActiveSheet()
+		local contents = self:GetTabContents( sheet.Tab )
+
 		if fs:GetSingleFile() then
 			fs:Write( contents )
-		else
+		elseif path then
 			local newfs = fs:AddFile( path )
 
 			newfs:Write( contents )
 
+			sheet.FileSystem = fs
+		else
+			return
 		end
+
+		sheet.Tab:SetTooltip( fs:GetPath() )
 	end
 end
 
@@ -734,12 +741,13 @@ function PANEL:OpenFile( file )
 
 	for i = 1 , #self.Editors do
 		if self.Editors[ i ].FileSystem == file then
+			self:SetActiveEditor( self.Editors[ i ] )
 			return
 		end
 	end
 
 	local sheet = self:AddEditorTab( file:GetName() )
-	sheet.FileSystem == file
+	sheet.FileSystem = file
 
 	local contents = string.Explode( "\n" , file:Read() )
 
@@ -786,6 +794,11 @@ end
 function PANEL:GetActiveEditor()
 	if not self.EditorSheet:GetActiveTab() then return end
 	return self.EditorSheet:GetActiveTab().Sheet.Panel
+end
+
+function PANEL:GetActiveSheet()
+	if not self.EditorSheet:GetActiveTab() then return end
+	return self.EditorSheet:GetActiveTab().Sheet
 end
 
 function PANEL:SetActiveEditor( sheet )
@@ -947,6 +960,10 @@ function PANEL:OnKeyCodePressed( code )
 
 		if code == KEY_W then
 			self:RemoveEditorTab()
+		end
+
+		if code == KEY_S then
+			self:SaveFile( self:GetActiveSheet().FileSystem )
 		end
 	end
 
