@@ -2,6 +2,17 @@
 local container , ply , env = ...
 local netc = container:GetNetworker()
 
+function include( path )
+	local fileData
+
+	for i , data in ipairs( env.LuaPack.FileData ) do
+		if data.Name == path then
+			local script = container:AddScript( data.Body , env , data.Name )
+
+			script:Execute()
+		end
+	end
+end
 
 table = luabox.CopyTable( table )
 string = luabox.CopyTable( string )
@@ -249,15 +260,14 @@ isstring = isstring
 
 local _print = print
 function print( ... )
-    --_print("I am being called")
     if SERVER then
-        local input = {...}
+		local input = {}
 
-        for key , value in pairs( input ) do
+        for key , value in pairs( {...} ) do
             input[ key ] = tostring( value )
         end
 
-        local str= table.concat( input , "\t" )
+        local str = table.concat( input , "\t" )
 
         netc:Start( "func_print" )
             netc:WriteString( str )

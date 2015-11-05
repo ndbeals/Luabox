@@ -21,6 +21,8 @@ print = function(...)
 	prn( RealTime() ,"\t:", ... )
 end
 
+ErrorPrint = print
+
 Colors = {
 	Gray = Color(0x80, 0x80, 0x80, 0xFF),
 	DarkGray = Color(0xA9, 0xA9, 0xA9, 0xFF),
@@ -34,7 +36,7 @@ Colors = {
 }
 
 --- Get Player Container.
--- Gets a the container that the player owns, caches the results because why not. creates a container if there isn't one.
+-- Gets the container that the player owns, caches the results because why not. creates a container if there isn't one.
 --@param player The player to get the container of.
 --@return Container: The player's container.
 function PlayerContainer( player )
@@ -180,6 +182,10 @@ function LoadLibraries()
 	end
 end
 
+function Error( ... )
+	print("Luabox Error: " , ... )
+end
+
 
 --- Library Class
 --@section Library
@@ -189,7 +195,6 @@ Library = Class()
 -- Holds basic function templates which are abstracted to work per player.
 --@param file file to load for the library
 function Library:Initialize( file )
-	print( file)
 	self.Path = file
 	self.Name = string.StripExtension( string.GetFileFromFilename( file ) ) or tostring(self)
 
@@ -865,6 +870,11 @@ function Networker:ProcessReceiver( name )
 	if not name then return end
 	local coro = self.Receivers[ name ]
 
+	if not coro then
+		Error( "No Receiver with name: " , name )
+		return
+	end
+
 	if self.FirstExecute then
 		coroutine.resume( coro , self )
 
@@ -955,11 +965,6 @@ function Container:Initialize( player , default_libs )
 
 	self.Networker = Networker( player )
 
-	self.Networker:Receive( "SendScriptToServer" , function( net )
-		local s = net:ReadString()
-		print("AAAA",s,net)
-	end)
-
 	self.Scripts				=	{} -- since there can be multiple scripts per environment, scripts are stored as keys and environments as the values
 	self.Environments			=	{}
 
@@ -1018,7 +1023,7 @@ function Container:AddFunctionsToEnvironment( env )
 
 		setfenv( Library:GetTemplate() , environment ) ( self , self.Player , env ) --
 	end
-	setmetatable( environment , {} )
+	setmetatable( environment , nil )
 end
 
 --- Select Environment.
@@ -1077,39 +1082,26 @@ function Container:SelectScript( index )
 	return self.Scripts[ index ]
 end
 
---- Send Script to Server
--- Sends a script to the Server
-function Container:SendScriptToServer( script )
-	if not type( script ) == "string" then
-		error( "Argument #1 expects a string" )
-	end
-
-	self.Networker:Start( "SendScriptToServer" )
-		self.Networker:WriteString( script )
-	self.Networker:Send()
-
-end
-
 
 --- Add Script.
 -- Adds a new script to the container with it's own new environment by default or an already existing environment with the index parameter.
 --@param funcstr Script function.
 --@param env OPTIONAL: use an already existing environment.
 --@return newscript: The new script object.
-function Container:AddScript( funcstr , env )
+function Container:AddScript( funcstr , env , name )
 	if not funcstr then return end
-
-	for inc in string.gmatch( functstr , "include%s*%([%s%p]*([%w./]*)[%s%p]*%)[%c%s;]*") do
-		print("found and include" , inc )
-
-		--self:AddScript( self.)
-	end
 
 	env = env or self:AddNewEnvironment()
 
 	local newscript = Script( env , funcstr )
 
 	table.insert( self:GetScripts() , newscript )
+
+	if name then
+		newscript:SetName( "Luabox: " .. name )
+	else
+		newscript:SetName( "Luabox: " .. tostring( self ) )
+	end
 
 	return newscript
 end
@@ -1217,7 +1209,7 @@ function Container:RunSandboxFunction( func , ... )
 	sethook(self.OpHook,"",500)
 	local rt = {pcall( func , ... )}
 	sethook(nil)
-
+	print("testest")
 	return rt
 end
 
@@ -1227,7 +1219,7 @@ end
 local times = 0
 local env , container , retvalues
 local hooke = {}
-hook.Call = function( name, gm, ... )
+hooke.Call = function( name, gm, ... )
 	--arg = { ... }
 	--print("too much")
 	for i = 1 , #Containers do
@@ -1278,7 +1270,7 @@ if not file.Exists( "luabox" , "DATA" ) then
 	file.CreateDir( "luabox" )
 end
 
-
+if CLIENT then
 --- FileSystem Class.
 --@section FileSystem
 
@@ -1293,7 +1285,17 @@ function FileSystem:Initialize( path , root )
 	self:SetPath( path or "luabox" )
 	self:SetRootFileSystem( root or self )
 
+	self:SetProjectFile( self.RootFileSystem:GetProjectFile() )
+
 	self:Build()
+end
+
+function FileSystem:SetProjectFile( file )
+	self.ProjectFile = file
+end
+
+function FileSystem:GetProjectFile()
+	return self.ProjectFile
 end
 
 --- SetSingleFile.
@@ -1352,6 +1354,10 @@ function FileSystem:Search( path )
 	local ret
 
 	if string.TrimRight( self:GetPath() , "/") == string.TrimRight( path , "/" ) then
+		return self
+	end
+
+	if string.find(string.TrimRight( self:GetPath() , "/") , string.TrimRight( path , "/" )) then
 		return self
 	end
 
@@ -1479,8 +1485,22 @@ function FileSystem:Build()
 
 	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
 
+	for i , projectFile in ipairs( files ) do
+
+		if projectFile == "luaboxproj.txt" then
+			self.Files[ 1 ] = File( self.Path .. "/" .. projectFile , self )
+
+			self.Files[ 1 ]:SetProjectFile( self.Files[ 1 ] )
+			self:SetProjectFile( self.Files[ 1 ] )
+
+			table.remove( files , i )
+
+			break
+		end
+	end
+
 	for i , v in ipairs( files ) do
-		self.Files[ i ] = File( self.Path .. "/" .. v , self )
+		self.Files[ #self.Files + 1 ] = File( self.Path .. "/" .. v , self )
 	end
 
 	for i , v in ipairs( directories ) do
@@ -1488,8 +1508,12 @@ function FileSystem:Build()
 	end
 end
 
-function FileSystem:Refresh( recurse )
+function FileSystem:Refresh( recurse , changed )
 	if self:GetSingleFile() then return end
+
+	changed = changed or false
+
+
 
 	local files , directories = file.Find( self.Path .. "/*" , "DATA" , "namedesc" )
 
@@ -1501,6 +1525,7 @@ function FileSystem:Refresh( recurse )
 			table.remove( self.Directories , i )
 
 			i = i - 1
+			changed = true
 		end
 
 		i = i + 1
@@ -1520,6 +1545,8 @@ function FileSystem:Refresh( recurse )
 
 		if new then
 			table.insert( self.Directories , i , FileSystem( self.Path .. "/" .. v , self ) )
+
+			changed = true
 		end
 	end
 
@@ -1531,6 +1558,8 @@ function FileSystem:Refresh( recurse )
 			table.remove( self.Files , i )
 
 			i = i - 1
+
+			changed = true
 		end
 
 		i = i + 1
@@ -1550,17 +1579,18 @@ function FileSystem:Refresh( recurse )
 
 		if new then
 			table.insert( self.Files , i , File( self.Path .. "/" .. v , self ) )
+
+			changed = true
 		end
 	end
 
 	if recurse then
 		for i , v in ipairs( self.Directories ) do
-			v:Refresh( recurse )
-		end
-		for i , v in ipairs( self.Files ) do
-			v:Refresh( recurse )
+			changed = v:Refresh( recurse , changed )
 		end
 	end
+
+	return changed
 end
 
 File = Class( FileSystem )
@@ -1576,6 +1606,8 @@ function File:Initialize( path , root )
 	self:SetSingleFile( true )
 	self:SetPath( path or "luabox" )
 	self:SetRootFileSystem( root or self )
+
+	self:SetProjectFile( self.RootFileSystem:GetProjectFile() )
 
 	self.Files = {}
 	self.Directories = {}
@@ -1616,8 +1648,7 @@ end
 function File:Write( str )
 	file.Write( self:GetPath() , str )
 end
-
---function File:Build() end
+end
 
 
 

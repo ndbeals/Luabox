@@ -10,7 +10,7 @@ local netc = container:GetNetworker()
 local G_Entity = Entity
 
 local check = luabox.CanUse
-print("WGYHAT IS CHECL",check)
+
 --local IsValid = IsValid
 
 

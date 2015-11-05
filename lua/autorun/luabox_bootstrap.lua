@@ -3,6 +3,7 @@
 luabox = luabox or {} --								Create the global table
 
 include("luabox/modules/luabox.lua")
+include("luabox/modules/luapack.lua")
 
 if SERVER then
 	AddCSLuaFile("luabox/cl_luabox.lua")
@@ -10,6 +11,7 @@ if SERVER then
 	AddCSLuaFile("luabox/sh_cppi.lua")
 
 	AddCSLuaFile("luabox/modules/luabox.lua")
+	AddCSLuaFile("luabox/modules/luapack.lua")
 	AddCSLuaFile("luabox/ui/editor.lua")
 	AddCSLuaFile("luabox/ui/editorframe.lua")
 	AddCSLuaFile("luabox/ui/filetree.lua")

@@ -297,11 +297,11 @@ end
 function PANEL:RefreshFileBrowser( pnl )
 	pnl = pnl or self.FileBrowser
 
-	pnl:Refresh()
+	if pnl:GetFileSystem():Refresh( true ) then
+		pnl:Refresh()
 
-    pnl:GetFileSystem():Refresh( true )
-
-	self:SetupFileBrowserButtons( pnl )
+		self:SetupFileBrowserButtons( pnl )
+	end
 end
 
 function PANEL:SetupFileBrowserButtons( pnl )
@@ -316,8 +316,10 @@ function PANEL:SetupFileBrowserButtons( pnl )
                     but:GetRoot():SetSelectedItem( nil )
                     but.Selected = false
                 else
-                    luabox.SetCurrentScript( but:GetFileSystem() )
+					but:GetRoot():SetSelectedItem( but )
                     but.Selected = true
+
+                    luabox.SetCurrentScript( but:GetFileSystem() )
                 end
             end
 
@@ -370,6 +372,8 @@ function PANEL:SetupFileBrowserButtons( pnl )
                 else
                     but:GetRoot():SetSelectedItem( but )
                     but.Selected = true
+
+					luabox.SetCurrentScript( but:GetFileSystem() )
                 end
     		end
 
@@ -517,12 +521,14 @@ function PANEL:Init()
     hook.Add( "OnSpawnMenuOpen" , "Luabox_Refesh_Tool_Browser" , function()
         if self.RefreshFileBrowser then
             self:RefreshFileBrowser()
+			print("reloaded")
         end
     end)
 
     hook.Add( "OnContextMenuOpen" , "Luabox_Refesh_Tool_Browser" , function()
         if self.RefreshFileBrowser then
             self:RefreshFileBrowser()
+			print("reloaded")
         end
     end)
 end

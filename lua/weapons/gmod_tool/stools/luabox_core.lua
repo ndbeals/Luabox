@@ -79,7 +79,28 @@ function TOOL:LeftClick( trace )
 	ent:Spawn()
 
 	ent:SetLuaboxPlayer( owner )
-	ent:SetScript( luabox.GetCurrentScript():Read() )
+
+	if SERVER then
+		luabox.luapack.RequestLuaPack( owner , function( pack )
+
+			if pack then
+				local container = ent:GetContainer()
+				local env = container:AddNewEnvironment()
+
+				ent:SetEnvironment( env )
+
+				luabox.luapack.RunPack( ent:GetContainer() , env , pack )
+			else
+
+				SafeRemoveEntity( ent )
+
+			end
+
+		end)
+
+	end
+
+	--ent:SetScript(  )
 
 	if IsValid( trace.Entity ) then
 		const = constraint.Weld( ent , trace.Entity , 0 , trace.HitBoxBone , 0 , true , true )
@@ -97,10 +118,10 @@ function TOOL:LeftClick( trace )
 	return true
 end
 
-local function MakeCore( pl , pos , ang , model , test )
-	if not pl then pl = game.GetWorld() end
+local function MakeCore( player , pos , ang , model , test )
+	if not player then player = game.GetWorld() end
 
-	if IsValid( pl ) and not pl:CheckLimit( "luabox_cores" ) then return false end
+	if IsValid( player ) and not player:CheckLimit( "luabox_cores" ) then return false end
 
 	local ent = ents.Create( "luabox_core_entity" )
 	if not IsValid( ent ) then return end
@@ -108,18 +129,18 @@ local function MakeCore( pl , pos , ang , model , test )
 	ent:SetModel( model )
 	ent:SetPos( pos )
 	ent:SetAngles( ang )
-	--ent:SetPlayer( pl )
-	ent.Player = pl
+	--ent:SetPlayer( player )
+	ent.Player = player
 
 	ent:Spawn()
 
-	if IsValid( pl ) then
-		pl:AddCount( "luabox_cores" , ent )
-		pl:AddCleanup( "luabox_cores" , ent )
+	if IsValid( player ) then
+		player:AddCount( "luabox_cores" , ent )
+		player:AddCleanup( "luabox_cores" , ent )
 
 		undo.Create( "luabox_core" )
 			undo.AddEntity( ent )
-			undo.SetPlayer( pl )
+			undo.SetPlayer( player )
 		undo.Finish()
 	end
 
