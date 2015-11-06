@@ -62,63 +62,53 @@ function TOOL:LeftClick( trace )
 
 	if not self:GetSWEP():CheckLimit( "luabox_cores" ) then return false end
 
-	local const
 	local owner = self:GetOwner()
-	local ent = ents.Create( "luabox_core_entity" )
-	local min = ent:OBBMins()
+	local luaboxCore = luabox.CreateCore( owner  , self:GetClientInfo( "model" ) )
+
+	local pos = trace.HitPos - trace.HitNormal * luaboxCore:OBBMins().z
 	local ang = trace.HitNormal:Angle()
-	ang.pitch = ang.pitch + 90
+	ang.p = ang.p + 90
 
-	ent:SetModel( self:GetClientInfo( "model" ) )
+	luaboxCore:SetPos( pos )
+	luaboxCore:SetAngles( ang )
 
-	ent:SetPos( trace.HitPos - trace.HitNormal * min.z )
-	ent:SetAngles( ang )
-	--ent:SetPlayer( owner )
-	ent.Player = pl
-
-	ent:Spawn()
-
-	ent:SetLuaboxPlayer( owner )
+	luaboxCore:Spawn()
 
 	if SERVER then
+
 		luabox.luapack.RequestLuaPack( owner , function( pack )
-
 			if pack then
-				local container = ent:GetContainer()
-				local env = container:AddNewEnvironment()
 
-				ent:SetEnvironment( env )
-
-				luabox.luapack.RunPack( ent:GetContainer() , env , pack )
+				luaboxCore:RunLuaPack( pack )
+				luaboxCore:SendPackToClient( pack , owner )
+				duplicator.StoreEntityModifier( luaboxCore , "luabox_test" , pack )
 			else
 
-				SafeRemoveEntity( ent )
-
+				SafeRemoveEntity( luaboxCore )
 			end
-
 		end)
-
 	end
 
-	--ent:SetScript(  )
-
-	if IsValid( trace.Entity ) then
-		const = constraint.Weld( ent , trace.Entity , 0 , trace.HitBoxBone , 0 , true , true )
-	end
 
 	undo.Create( "luabox_core" )
-		undo.AddEntity( ent )
-		undo.AddEntity( const )
+		undo.AddEntity( luaboxCore )
+		if IsValid( trace.Entity ) then
+			duplicator.StoreEntityModifier( luaboxCore , "luabox_ent_link" , {Ent = trace.Entity:EntIndex()})
+			undo.AddEntity( constraint.Weld( luaboxCore , trace.Entity , 0 , trace.HitBoxBone , 0 , true , true ) )
+		end
 		undo.SetPlayer( owner )
 	undo.Finish()
 
-	owner:AddCount( "luabox_cores" , ent )
-	owner:AddCleanup( "luabox_cores" , ent )
+	owner:AddCount( "luabox_cores" , luaboxCore )
+	owner:AddCleanup( "luabox_cores" , luaboxCore )
 
 	return true
 end
 
-local function MakeCore( player , pos , ang , model , test )
+local function MakeCore( player , pos , ang , model , test , data)
+
+	print("got test" , test )
+	PrintTable( test )
 	if not player then player = game.GetWorld() end
 
 	if IsValid( player ) and not player:CheckLimit( "luabox_cores" ) then return false end
@@ -146,7 +136,10 @@ local function MakeCore( player , pos , ang , model , test )
 
 	return ent
 end
-duplicator.RegisterEntityClass("luabox_core_entity", MakeCore , "Pos" , "Ang" , "Model" )
+--duplicator.RegisterEntityClass("luabox_core_entity", MakeCore , "Pos" , "Ang" , "Model" , "Data" )
+
+
+
 
 function TOOL:Think()
 	local model = self:GetClientInfo( "model" )

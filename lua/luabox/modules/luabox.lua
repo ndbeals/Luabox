@@ -1203,13 +1203,13 @@ end
 -- Runs the sandboxed function you pass it with the arguments you pass it. this assumes the functions you pass it were created in the sandbox.
 --@param func the function to call.
 --@param ... varargs to call the function with.
-function Container:RunSandboxFunction( func , ... )
+function Container:RunSandboxFunction(func, ...)
 	self.ops = 0
-
-	sethook(self.OpHook,"",500)
-	local rt = {pcall( func , ... )}
+	sethook(self.OpHook, "", 500)
+	local rt = {pcall(func, ...)}
 	sethook(nil)
 	print("testest")
+
 	return rt
 end
 

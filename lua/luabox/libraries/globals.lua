@@ -259,7 +259,8 @@ isstring = isstring
 
 
 local _print = print
-function print( ... )
+print = print
+function pprint( ... )
     if SERVER then
 		local input = {}
 
