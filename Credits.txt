@@ -13,3 +13,5 @@ Lua EDITOR:
 --modified slightly (yet again) by TGiFallen to make it work for Luabox
 
 !Cake (notcake) for lots of UI code, coming from his addon gooey
+
+Pac And Falco (FPTje) for letting me talk to them about some design issues

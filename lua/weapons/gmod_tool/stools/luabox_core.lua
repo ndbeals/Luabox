@@ -64,9 +64,10 @@ function TOOL:LeftClick( trace )
 
 	local owner = self:GetOwner()
 	local luaboxCore = luabox.CreateCore( owner  , self:GetClientInfo( "model" ) )
-
-	local pos = trace.HitPos - trace.HitNormal * luaboxCore:OBBMins().z
+	local min = luaboxCore:OBBMins()
+	local pos = trace.HitPos - trace.HitNormal * min.z
 	local ang = trace.HitNormal:Angle()
+
 	ang.p = ang.p + 90
 
 	luaboxCore:SetPos( pos )
@@ -74,26 +75,26 @@ function TOOL:LeftClick( trace )
 
 	luaboxCore:Spawn()
 
-	if SERVER then
+	luabox.luapack.RequestLuaPack( owner , function( pack )
+		if pack then
 
-		luabox.luapack.RequestLuaPack( owner , function( pack )
-			if pack then
+			luaboxCore:RunLuaPack( pack )
+			luaboxCore:SendPackToClient( pack , owner )
+			duplicator.StoreEntityModifier( luaboxCore , "luabox_test" , pack )
+		else
 
-				luaboxCore:RunLuaPack( pack )
-				luaboxCore:SendPackToClient( pack , owner )
-				duplicator.StoreEntityModifier( luaboxCore , "luabox_test" , pack )
-			else
+			SafeRemoveEntity( luaboxCore )
+		end
+	end)
 
-				SafeRemoveEntity( luaboxCore )
-			end
-		end)
-	end
 
 
 	undo.Create( "luabox_core" )
 		undo.AddEntity( luaboxCore )
 		if IsValid( trace.Entity ) then
 			duplicator.StoreEntityModifier( luaboxCore , "luabox_ent_link" , {Ent = trace.Entity:EntIndex()})
+			luaboxCore:CreateLink( "Test" , trace.Entity )
+			duplicator.StoreEntityModifier( luaboxCore , "LuaboxLinkInfo" , {Test = trace.Entity:EntIndex()})
 			undo.AddEntity( constraint.Weld( luaboxCore , trace.Entity , 0 , trace.HitBoxBone , 0 , true , true ) )
 		end
 		undo.SetPlayer( owner )
@@ -104,41 +105,6 @@ function TOOL:LeftClick( trace )
 
 	return true
 end
-
-local function MakeCore( player , pos , ang , model , test , data)
-
-	print("got test" , test )
-	PrintTable( test )
-	if not player then player = game.GetWorld() end
-
-	if IsValid( player ) and not player:CheckLimit( "luabox_cores" ) then return false end
-
-	local ent = ents.Create( "luabox_core_entity" )
-	if not IsValid( ent ) then return end
-
-	ent:SetModel( model )
-	ent:SetPos( pos )
-	ent:SetAngles( ang )
-	--ent:SetPlayer( player )
-	ent.Player = player
-
-	ent:Spawn()
-
-	if IsValid( player ) then
-		player:AddCount( "luabox_cores" , ent )
-		player:AddCleanup( "luabox_cores" , ent )
-
-		undo.Create( "luabox_core" )
-			undo.AddEntity( ent )
-			undo.SetPlayer( player )
-		undo.Finish()
-	end
-
-	return ent
-end
---duplicator.RegisterEntityClass("luabox_core_entity", MakeCore , "Pos" , "Ang" , "Model" , "Data" )
-
-
 
 
 function TOOL:Think()

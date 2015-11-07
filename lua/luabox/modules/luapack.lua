@@ -268,8 +268,8 @@ function Receive( handler , func )
 end
 
 
-function RunPack( container , pack )
-	local env = container:AddNewEnvironment()
+function RunPack( container , pack , env )
+	local env = env or container:AddNewEnvironment()
 
 	env.LuaPack = pack
 	-- pack.Env = env

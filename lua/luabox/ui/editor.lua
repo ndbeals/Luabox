@@ -422,13 +422,20 @@ function PANEL:SyntaxColorLine(row)
 	return cols;
 end
 
+local function indexType( tab , idx )
+	return tab[idx]
+end
+
 function PANEL:CheckHighlight( str )
 	local explo = string.Explode( "." , str )
 	if #explo > 1 then
+		local err
 		local next = self.DefinedHighlights[ explo[1] ]
 		for i = 2 , #explo do
 			if not next then break end
-			next = next[ explo[i] ]
+			suc , next = pcall( indexType , next , explo[i] )
+
+			if not suc then return "v" end
 		end
 		if type( next )== "function" then
 			return "f"

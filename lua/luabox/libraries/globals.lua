@@ -14,6 +14,8 @@ function include( path )
 	end
 end
 
+
+
 table = luabox.CopyTable( table )
 string = luabox.CopyTable( string )
 math = luabox.CopyTable( math )
@@ -315,7 +317,8 @@ local function printtab( t, indent, done )
 end
 
 local _PrintTable = PrintTable
-function PrintTable( t , indent , done )
+PrintTable = PrintTable
+function aPrintTable( t , indent , done )
     if SERVER then
         local send = printtab( t , indent , done )
         netc:Start( "func_printtab" )
@@ -328,11 +331,3 @@ end
 netc:Receive( "func_printtab" , function()
     Msg( netc:ReadString() )
 end)
-
-
-
-
-print("Globals Loaded")
-function env:OnRemove()
-    print("ON REMOVE: ", self)
-end

@@ -16,7 +16,7 @@ function ENT:SetLuaboxPlayer( ply )
 	end
 
 	self:SetContainer( luabox.PlayerContainer( ply ) )
-	self:SetEnvironment( self.Container:AddNewEnvironment() )
+	--self:SetEnvironment( self.Container:AddNewEnvironment() )
 end
 
 function ENT:SetContainer( container )
@@ -28,10 +28,22 @@ function ENT:GetContainer()
 end
 
 function ENT:SetEnvironment( env )
+	env.Entity = self
+
 	self.Environment = env
 end
 
 function ENT:GetEnvironment()
+	return self.Environment
+end
+
+function ENT:NewEnvironment()
+	if self:GetEnvironment() then
+		self:GetContainer():RemoveEnvironment( self:GetEnvironment() )
+	end
+
+	self:SetEnvironment( self:GetContainer():AddNewEnvironment() )
+
 	return self.Environment
 end
 
@@ -46,11 +58,7 @@ end
 function ENT:RunLuaPack( pack )
 	self:SetLuaPack( pack )
 
-	if self:GetEnvironment() then
-		self:GetContainer():RemoveEnvironment( self:GetEnvironment() )
-	end
+	local environment = self:NewEnvironment()
 
-	local environment = luabox.luapack.RunPack( self:GetContainer() , pack )
-
-	self:SetEnvironment( environment )
+	luabox.luapack.RunPack( self:GetContainer() , pack , environment)
 end
